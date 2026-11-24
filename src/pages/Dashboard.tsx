@@ -4,13 +4,16 @@ import Link from '../components/Link'
 import Page from '../components/Page'
 import { trips, type Trip } from '../data/trips'
 import { importLifeListCsv } from '../data/ebird'
+import { useLifeList } from '../contexts/LifeListContext'
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
   const [dashboardTrips, setDashboardTrips] = useState<Trip[]>(() => [...trips])
   const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
-  const [lifeListCount, setLifeListCount] = useState<number | null>(null)
+
+  // Hook for reading shared list state and its setter during render
+  const { lifeList, setLifeList } = useLifeList()
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -54,13 +57,13 @@ function Dashboard() {
         <div className="life-list-summary">
           <div className="life-list-metric">
             <p className="life-list-count" aria-live="polite">
-              {lifeListCount ?? 0}
+              {lifeList?.size ?? 0}
             </p>
             <h2 className="life-list-label" id="life-list-label">
               Lifers
             </h2>
           </div>
-          {lifeListCount === null && (
+          {lifeList === null && (
             <p className="life-list-prompt">Import your life list to get started.</p>
           )}
         </div>
@@ -79,7 +82,9 @@ function Dashboard() {
                   const csvText = await file.text()
                   const lifeList = importLifeListCsv(csvText)
 
-                  setLifeListCount(lifeList.size)
+                  // Save the parsed list in the provider so other pages can access it.
+                  setLifeList(lifeList)
+
                   setLifeListStatus('')
                 } catch (error) {
                   setLifeListStatus(
