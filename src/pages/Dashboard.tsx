@@ -3,11 +3,14 @@ import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
 import { trips, type Trip } from '../data/trips'
+import { importLifeListCsv } from '../data/ebird'
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
   const [dashboardTrips, setDashboardTrips] = useState<Trip[]>(() => [...trips])
+  const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
+  const [lifeListCount, setLifeListCount] = useState<number | null>(null)
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -47,15 +50,59 @@ function Dashboard() {
 
   return (
     <Page title="Dashboard">
-      <div className="dashboard-actions">
-        <button
-          className="primary-button"
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-        >
-          + Add trip
-        </button>
-      </div>
+      <section className="life-list-feature" aria-labelledby="life-list-label">
+        <div className="life-list-summary">
+          <div className="life-list-metric">
+            <p className="life-list-count" aria-live="polite">
+              {lifeListCount ?? 0}
+            </p>
+            <h2 className="life-list-label" id="life-list-label">
+              Lifers
+            </h2>
+          </div>
+          {lifeListCount === null && (
+            <p className="life-list-prompt">Import your life list to get started.</p>
+          )}
+        </div>
+        <div className="life-list-actions">
+          <div className="life-list-import">
+            <input
+              id="life-list-upload"
+              className="life-list-upload-input"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0]
+                if (!file) return
+
+                try {
+                  const csvText = await file.text()
+                  const lifeList = importLifeListCsv(csvText)
+
+                  setLifeListCount(lifeList.size)
+                  setLifeListStatus('')
+                } catch (error) {
+                  setLifeListStatus(
+                    error instanceof Error ? error.message : 'Could not import the CSV file.'
+                  )
+                }
+              }}
+            />
+            {/* TODO: add instructions for how to get CSV */}
+            <label className="life-list-upload-button" htmlFor="life-list-upload">
+              Import life list
+            </label>
+          </div>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Add trip
+          </button>
+        </div>
+      </section>
+      {lifeListStatus && <p role="alert">{lifeListStatus}</p>}
 
       <section className="trip-grid" aria-label="Trips">
         {dashboardTrips.map((trip) => (

@@ -1,7 +1,75 @@
-.dashboard-actions {
+.life-list-actions {
   display: flex;
-  justify-content: flex-end;
-  margin: -16px 0 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 32px;
+}
+
+.life-list-import {
+  display: flex;
+  align-items: center;
+}
+
+.life-list-upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.life-list-upload-button {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.life-list-upload-input:focus-visible + .life-list-upload-button {
+  outline: 3px solid rgba(47, 93, 80, 0.2);
+  outline-offset: 3px;
+}
+
+.life-list-feature {
+  margin-bottom: 32px;
+}
+
+.life-list-count {
+  margin: 0;
+  color: var(--color-primary);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(5rem, 15vw, 9rem);
+  font-weight: 400;
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+}
+
+.life-list-metric {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.life-list-label {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 700;
+}
+
+.life-list-prompt {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
 }
 
 .primary-button {

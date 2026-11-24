@@ -1,6 +1,8 @@
-// Data layer for "which species in this area don't I have yet, and where are the best hotspots?"
+// Data layer for hotspot and species data from Ebird API and CSVs
 // Needs VITE_EBIRD_KEY in .env
 // FUTURE: credit ebird for data
+
+import Papa from 'papaparse';
 
 const BASE = "https://api.ebird.org/v2";
 const KEY = import.meta.env.VITE_EBIRD_KEY as string;
@@ -39,6 +41,15 @@ export type DestinationHotspot = {
   totalSpecies: number;
   url: string;
 };
+
+/** parse downloaded csv text with papaparse */
+export function importLifeListCsv(csvText: string) {
+  const { data, errors } = Papa.parse<Record<string, string>>(csvText, {
+    header: true, skipEmptyLines: true,
+  })
+  if (errors.length) throw new Error(errors[0].message)
+    return lifeListFromRows(data)
+}
 
 /** Build your life list (a set of lowercase scientific names) from parsed "Download my data" rows. */
 export function lifeListFromRows(rows: Record<string, string>[]): Set<string> {
