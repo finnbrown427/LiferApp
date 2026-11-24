@@ -7,7 +7,6 @@ import { trips, type Trip } from '../data/trips'
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
-  const [cityNames, setCityNames] = useState('')
   const [dashboardTrips, setDashboardTrips] = useState<Trip[]>(() => [...trips])
 
   useEffect(() => {
@@ -24,7 +23,6 @@ function Dashboard() {
   const closeModal = () => {
     setIsModalOpen(false)
     setTripName('')
-    setCityNames('')
   }
 
   const createTrip = (event: FormEvent<HTMLFormElement>) => {
@@ -33,17 +31,14 @@ function Dashboard() {
     const name = tripName.trim()
     if (!name) return
 
-    const cities = cityNames
-      .split(',')
-      .map((city) => city.trim())
-      .filter(Boolean)
+
 
     const id = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || `trip-${Date.now()}`
 
-    const newTrip: Trip = { id, name, cities }
+    const newTrip: Trip = { id, name, destinations: [] }
 
     trips.push(newTrip)
     setDashboardTrips((currentTrips) => [...currentTrips, newTrip])
@@ -71,7 +66,7 @@ function Dashboard() {
           >
             <span className="trip-card-label">Trip</span>
             <h2>{trip.name}</h2>
-            <p>{trip.cities.length} {trip.cities.length === 1 ? 'city' : 'cities'}</p>
+            <p>{trip.destinations.length} {trip.destinations.length === 1 ? 'destination' : 'destinations'}</p>
             <span className="card-arrow" aria-hidden="true">→</span>
           </Link>
         ))}
@@ -113,18 +108,6 @@ function Dashboard() {
                   required
                   autoFocus
                 />
-              </label>
-
-              <label htmlFor="trip-cities">
-                Cities <span className="optional">(optional)</span>
-                <input
-                  id="trip-cities"
-                  name="cityNames"
-                  value={cityNames}
-                  onChange={(event) => setCityNames(event.target.value)}
-                  placeholder="Rome, Florence, Venice"
-                />
-                <span className="field-help">Separate city names with commas.</span>
               </label>
 
               <div className="form-actions">

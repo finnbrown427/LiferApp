@@ -1,14 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
-import { addCity as appendCity, cityId, trips } from '../data/trips'
+import { useDestinationSearch, type Destination } from '../data/destination'
+import { addDestination as appendDestination, destinationId, trips } from '../data/trips'
 import './TripPage.css'
 
 function TripPage({ tripId }: { tripId: string }) {
   const trip = trips.find((item) => item.id === tripId)
-  const [cities, setCities] = useState<string[]>(() => [...(trip?.cities ?? [])])
+  const [destinations, setDestinations] = useState<Destination[]>(() => [...(trip?.destinations ?? [])])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [cityName, setCityName] = useState('')
+  const [destinationName, setDestinationName] = useState('')
+  const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null)
+  const searchResults = useDestinationSearch(destinationName)
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -27,47 +30,48 @@ function TripPage({ tripId }: { tripId: string }) {
 
   const closeModal = () => {
     setIsModalOpen(false)
-    setCityName('')
-  }
+    setDestinationName('')
+    setSelectedDestination(null)
+  } 
+  
 
-  const addCity = (event: FormEvent<HTMLFormElement>) => {
+  const addDestinationHandler = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const name = cityName.trim()
-    if (!name) return
+    if (!selectedDestination) return
 
-    const updatedTrip = appendCity(tripId, name)
-    setCities(updatedTrip?.cities ?? [...cities, name])
+    const updatedTrip = appendDestination(tripId, selectedDestination)
+    setDestinations(updatedTrip?.destinations ?? [...destinations, selectedDestination])
     closeModal()
   }
 
   return (
     <Page title={trip.name} backTo="/">
-      <section className="city-section" aria-label="Cities">
-        <div className="city-section-heading">
+      <section className="destination-section" aria-label="Destinations">
+        <div className="destination-section-heading">
           <div className="section-heading">
-            <h2>Cities</h2>
-            <span>{cities.length}</span>
+            <h2>Destinations</h2>
+            <span>{destinations.length}</span>
           </div>
           <button
             className="primary-button"
             type="button"
             onClick={() => setIsModalOpen(true)}
           >
-            + Add city
+            + Add destination
           </button>
         </div>
 
-        <div className="city-list">
-          {cities.map((city, index) => (
+        <div className="destination-list">
+          {destinations.map((destination, index) => (
             <Link
-              key={city}
-              to={`/trips/${trip.id}/cities/${cityId(city)}`}
-              className="city-row"
+              key={destination.id}
+              to={`/trips/${trip.id}/destinations/${destinationId(destination)}`}
+              className="destination-row"
             >
-              <span className="city-index">{String(index + 1).padStart(2, '0')}</span>
-              <span className="city-name">{city}</span>
-              <span className="city-arrow" aria-hidden="true">→</span>
+              <span className="destination-index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="destination-name">{destination.name}</span>
+              <span className="destination-arrow" aria-hidden="true">→</span>
             </Link>
           ))}
         </div>
@@ -76,16 +80,16 @@ function TripPage({ tripId }: { tripId: string }) {
       {isModalOpen && (
         <div className="modal-backdrop" onMouseDown={closeModal}>
           <section
-            className="city-modal"
+            className="destination-modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="add-city-title"
+            aria-labelledby="add-destination-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="modal-heading">
               <div>
                 <p className="modal-eyebrow">New destination</p>
-                <h2 id="add-city-title">Add a city</h2>
+                <h2 id="add-destination-title">Add a destination</h2>
               </div>
               <button
                 className="modal-close"
@@ -97,26 +101,52 @@ function TripPage({ tripId }: { tripId: string }) {
               </button>
             </div>
 
-            <form className="city-form" onSubmit={addCity}>
-              <label htmlFor="city-name">
-                City name
+            <form className="destination-form" onSubmit={addDestinationHandler}>
+              <label htmlFor="destination-name">
+                Destination name
                 <input
-                  id="city-name"
-                  name="cityName"
-                  value={cityName}
-                  onChange={(event) => setCityName(event.target.value)}
+                  id="destination-name"
+                  name="destinationName"
+                  value={destinationName}
+                  onChange={(event) => {
+                    setDestinationName(event.target.value)
+                    setSelectedDestination(null)
+                  }}
                   placeholder="e.g. Rome"
                   required
                   autoFocus
                 />
               </label>
 
+              <div className="destination-search-results">
+                {searchResults.map((destination) => (
+                  <button
+                    key={destination.id}
+                    type="button"
+                    className={
+                      selectedDestination?.id === destination.id
+                        ? 'destination-search-result destination-search-result-selected'
+                        : 'destination-search-result'
+                    }
+                    onClick={() => {
+                      setSelectedDestination(destination)
+                      setDestinationName(destination.name)
+                    }}
+                  >
+                    <span className="destination-search-result-name">{destination.name}</span>
+                    {destination.country && (
+                      <span className="destination-search-result-country">{destination.country}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
               <div className="form-actions">
                 <button className="secondary-button" type="button" onClick={closeModal}>
                   Cancel
                 </button>
-                <button className="primary-button" type="submit">
-                  Add city
+                <button className="primary-button" type="submit" disabled={!selectedDestination}>
+                  Add destination
                 </button>
               </div>
             </form>

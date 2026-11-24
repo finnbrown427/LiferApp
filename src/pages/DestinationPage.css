@@ -1,4 +1,4 @@
-.city-placeholder {
+.destination-placeholder {
   min-height: 280px;
   display: grid;
   place-items: center;
@@ -9,13 +9,13 @@
   box-shadow: var(--shadow-card);
 }
 
-.city-actions {
+.destination-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 20px;
 }
 
-.delete-city-button {
+.delete-destination-button {
   border: 1px solid #d9aaa4;
   border-radius: 999px;
   padding: 10px 14px;
@@ -25,7 +25,7 @@
   cursor: pointer;
 }
 
-.delete-city-button:hover {
+.delete-destination-button:hover {
   border-color: #bd746a;
   background: #fdebe7;
 }
