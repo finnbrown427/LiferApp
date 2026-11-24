@@ -1,9 +1,5 @@
 import type { ReactNode } from 'react'
-
-function navigate(path: string) {
-  window.history.pushState({}, '', path)
-  window.dispatchEvent(new PopStateEvent('popstate'))
-}
+import { navigate } from '../utils/navigation'
 
 type LinkProps = {
   to: string

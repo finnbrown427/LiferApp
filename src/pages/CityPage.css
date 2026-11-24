@@ -8,3 +8,24 @@
   color: var(--color-muted);
   box-shadow: var(--shadow-card);
 }
+
+.city-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.delete-city-button {
+  border: 1px solid #d9aaa4;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #fff7f5;
+  color: #9a5148;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.delete-city-button:hover {
+  border-color: #bd746a;
+  background: #fdebe7;
+}

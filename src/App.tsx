@@ -26,7 +26,7 @@ function App() {
 
   const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/)
   if (tripMatch) {
-    return <TripPage tripId={tripMatch[1]} />
+    return <TripPage key={tripMatch[1]} tripId={tripMatch[1]} />
   }
 
   return <Page title="Page not found" backTo="/" />
