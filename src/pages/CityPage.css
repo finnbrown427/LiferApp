@@ -1,0 +1,10 @@
+.city-placeholder {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  box-shadow: var(--shadow-card);
+}

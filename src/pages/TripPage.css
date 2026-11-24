@@ -1,0 +1,58 @@
+.city-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 20px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.section-heading span {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.city-list {
+  border-top: 1px solid var(--color-border);
+}
+
+.city-row {
+  min-height: 88px;
+  display: grid;
+  grid-template-columns: 64px 1fr 24px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.city-row:hover .city-name {
+  color: var(--color-primary);
+}
+
+.city-index {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.city-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  transition: color 160ms ease;
+}
+
+.city-arrow {
+  color: var(--color-muted);
+  font-size: 18px;
+}
