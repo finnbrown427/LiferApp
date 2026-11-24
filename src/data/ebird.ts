@@ -33,6 +33,13 @@ export type RankedHotspot = {
   url: string;
 };
 
+export type DestinationHotspot = {
+  locId: string;
+  locName: string;
+  totalSpecies: number;
+  url: string;
+};
+
 /** Build your life list (a set of lowercase scientific names) from parsed "Download my data" rows. */
 export function lifeListFromRows(rows: Record<string, string>[]): Set<string> {
   const names = new Set<string>();
@@ -115,4 +122,30 @@ export async function hotspotsForSpecies(
   return [...byLocation.values()].sort(
     (a, b) => b.reports - a.reports || b.lastSeen.localeCompare(a.lastSeen)
   );
+}
+
+/** Hotspots near coordinates, ranked by total species observed at each location. */
+export async function hotspotsNearDestination(
+  latitude: number,
+  longitude: number,
+  distanceKm = 25
+): Promise<DestinationHotspot[]> {
+  const hotspots = await api<Array<{
+    locId: string;
+    locName: string;
+    numSpeciesAllTime?: number;
+  }>>(
+    `/ref/hotspot/geo?lat=${latitude}&lng=${longitude}&dist=${distanceKm}&fmt=json&cap=500`
+  );
+
+  return hotspots
+    .map((hotspot) => ({
+      locId: hotspot.locId,
+      locName: hotspot.locName,
+      totalSpecies: hotspot.numSpeciesAllTime ?? 0,
+      url: `https://ebird.org/hotspot/${hotspot.locId}`,
+    }))
+    .sort(
+      (a, b) => b.totalSpecies - a.totalSpecies
+    );
 }
