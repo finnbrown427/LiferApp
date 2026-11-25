@@ -2,7 +2,7 @@ import type { Destination } from "./destination"
 
 export type Trip = {
   id: string
-  userId: string // fallback: userId: 'rosa' | 'finn'
+  userId: string
   name: string
   destinations: Destination[]
 }

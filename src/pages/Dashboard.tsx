@@ -9,11 +9,18 @@ import { useTrips } from '../contexts/TripsContext'
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
+  const [tripError, setTripError] = useState<string | null>(null)
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false)
   const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
 
   // Read and update the selected user's life list.
   const { lifeList, setLifeList } = useLifeList()
-  const { trips: dashboardTrips, createTrip: addTrip } = useTrips()
+  const {
+    trips: dashboardTrips,
+    isLoading: isLoadingTrips,
+    error: tripsError,
+    createTrip: addTrip,
+  } = useTrips()
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -29,16 +36,25 @@ function Dashboard() {
   const closeModal = () => {
     setIsModalOpen(false)
     setTripName('')
+    setTripError(null)
   }
 
-  const createTrip = (event: FormEvent<HTMLFormElement>) => {
+  const createTrip = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const name = tripName.trim()
     if (!name) return
 
-    addTrip(name)
-    closeModal()
+    setIsCreatingTrip(true)
+    setTripError(null)
+    try {
+      await addTrip(name)
+      closeModal()
+    } catch (error) {
+      setTripError(error instanceof Error ? error.message : 'Could not create trip.')
+    } finally {
+      setIsCreatingTrip(false)
+    }
   }
 
   return (
@@ -100,6 +116,8 @@ function Dashboard() {
       {lifeListStatus && <p role="alert">{lifeListStatus}</p>}
 
       <section className="trip-grid" aria-label="Trips">
+        {isLoadingTrips && <p>Loading trips...</p>}
+        {tripsError && <p role="alert">Could not load trips: {tripsError}</p>}
         {dashboardTrips.map((trip) => (
           <Link
             key={trip.id}
@@ -152,12 +170,19 @@ function Dashboard() {
                 />
               </label>
 
+              {tripError && <p role="alert">{tripError}</p>}
+
               <div className="form-actions">
-                <button className="secondary-button" type="button" onClick={closeModal}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isCreatingTrip}
+                >
                   Cancel
                 </button>
-                <button className="primary-button" type="submit">
-                  Create trip
+                <button className="primary-button" type="submit" disabled={isCreatingTrip}>
+                  {isCreatingTrip ? 'Creating...' : 'Create trip'}
                 </button>
               </div>
             </form>
