@@ -5,3 +5,4 @@ export const defaultUsers = [
 ] as const
 
 export type UserId = (typeof defaultUsers)[number]['id']
+

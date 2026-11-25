@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
+// Shared page layout with a back link and selector for the active profile.
+import { type ReactNode } from 'react'
 import Link from './Link'
 import { useCurrentUser } from '../contexts/CurrentUserContext'
-import { defaultUsers } from '../data/users'
 import { navigate } from '../utils/navigation'
 
 type PageProps = {
@@ -11,7 +11,7 @@ type PageProps = {
 }
 
 function Page({ title, backTo, children }: PageProps) {
-  const { currentUserId, setCurrentUserId } = useCurrentUser()
+  const { profiles, currentUserId, setCurrentUserId } = useCurrentUser()
 
   return (
     <main className="page">
@@ -24,15 +24,17 @@ function Page({ title, backTo, children }: PageProps) {
           <select
             value={currentUserId}
             onChange={(event) => {
-              const selectedUser = defaultUsers.find((user) => user.id === event.target.value)
+              const selectedUser = profiles.find((user) => user.id === event.target.value)
               if (!selectedUser) return
               setCurrentUserId(selectedUser.id)
               if (backTo) navigate('/')
             }}
           >
-            {defaultUsers.map((user) => (
-              <option key={user.id} value={user.id}>{user.name}</option>
-            ))}
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.display_name}
+            </option>
+          ))}
           </select>
         </label>
       </div>
