@@ -8,10 +8,7 @@ export type Trip = {
 }
 
 export function destinationId(destination: Destination) {
-  return destination.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
+  return String(destination.id)
 }
 
 export const initialTrips: Trip[] = [

@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 import Page from '../components/Page'
 import { navigate } from '../utils/navigation'
-import { destinationId as destinationSlug } from '../data/trips'
 import { useTrips } from '../contexts/TripsContext'
-import { hotspotsNearDestination, type DestinationHotspot } from '../data/ebird'
+import { loadDestinationHotspots } from '../application/destinationHotspots'
+import type { DestinationHotspot } from '../data/ebird'
 import './DestinationPage.css'
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
   const { findTrip, removeDestination } = useTrips()
   const trip = findTrip(tripId)
   const destination = trip?.destinations.find(
-    (item) => destinationSlug(item) === destinationId,
+    (item) => String(item.id) === destinationId,
   )
   const [hotspots, setHotspots] = useState<DestinationHotspot[]>([])
   const [isLoadingHotspots, setIsLoadingHotspots] = useState(false)
@@ -22,8 +22,8 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     setIsLoadingHotspots(true)
     setHotspotError('')
 
-    hotspotsNearDestination(destination.latitude, destination.longitude)
-      .then((results) => setHotspots(results.slice(0, 3)))
+    loadDestinationHotspots(destination.latitude, destination.longitude)
+      .then((results) => setHotspots(results))
       .catch((error: unknown) => {
         setHotspotError(error instanceof Error ? error.message : 'Could not load hotspots.')
       })

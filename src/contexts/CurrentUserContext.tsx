@@ -2,29 +2,26 @@
 // Retrieves profiles from database
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { defaultUsers, type UserId } from '../data/users'
-import { supabase } from '../lib/supabase'
+import { loadProfiles, type Profile } from '../repositories/profileRepository'
+import { loadCurrentUser, saveCurrentUser } from '../repositories/localStorageRepository'
 
 
 type CurrentUserContextValue = {
   profiles: Profile[]
+  profilesLoading: boolean
+  profilesError: string | null
   currentUserId: UserId
   setCurrentUserId: (userId: UserId) => void
 }
 
-type Profile = {
-  id: UserId
-  display_name: string
-}
-
 const CurrentUserContext = createContext<CurrentUserContextValue | null>(null)
-const STORAGE_KEY = 'lifer.currentUser'
 
 function isUserId(value: string | null): value is UserId {
   return defaultUsers.some((user) => user.id === value)
 }
 
 function getInitialUserId(): UserId {
-  const savedUserId = localStorage.getItem(STORAGE_KEY)
+  const savedUserId = loadCurrentUser()
   return isUserId(savedUserId) ? savedUserId : 'finn'
 }
 
@@ -32,29 +29,37 @@ function getInitialUserId(): UserId {
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<UserId>(getInitialUserId)
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [profilesLoading, setProfilesLoading] = useState(true)
+  const [profilesError, setProfilesError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadProfiles = async () => {
-      const { data, error } = await supabase
-        .from('app_profiles')
-        .select('id, display_name')
-
-      if (error) {
-        console.error('could not load profiles:', error.message)
-        return
+    const fetchProfiles = async () => {
+      setProfilesLoading(true)
+      try {
+        setProfiles(await loadProfiles())
+        setProfilesError(null)
+      } catch (error) {
+        setProfilesError(error instanceof Error ? error.message : 'Could not load profiles.')
+      } finally {
+        setProfilesLoading(false)
       }
-      setProfiles(data ?? [])
     }
-    void loadProfiles()
+    void fetchProfiles()
   }, [])
 
   const selectUser = (userId: UserId) => {
-    localStorage.setItem(STORAGE_KEY, userId)
+    saveCurrentUser(userId)
     setCurrentUserId(userId)
   }
 
   return (
-    <CurrentUserContext.Provider value={{ profiles, currentUserId, setCurrentUserId: selectUser }}>
+    <CurrentUserContext.Provider value={{
+      profiles,
+      profilesLoading,
+      profilesError,
+      currentUserId,
+      setCurrentUserId: selectUser,
+    }}>
       {children}
     </CurrentUserContext.Provider>
   )

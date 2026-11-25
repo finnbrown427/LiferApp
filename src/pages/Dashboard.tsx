@@ -2,7 +2,7 @@ import './Dashboard.css'
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
-import { importLifeListCsv } from '../data/ebird'
+import { importLifeList } from '../application/lifeList'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useTrips } from '../contexts/TripsContext'
 
@@ -70,7 +70,7 @@ function Dashboard() {
 
                 try {
                   const csvText = await file.text()
-                  const lifeList = importLifeListCsv(csvText)
+                  const lifeList = importLifeList(csvText)
 
                   // Save the parsed list in the provider so other pages can access it.
                   setLifeList(lifeList)

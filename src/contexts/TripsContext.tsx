@@ -1,8 +1,9 @@
 // Provides the selected profile's trips and trip/destination actions, persisting all profiles locally.
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Destination } from '../data/destination'
-import { initialTrips, type Trip } from '../data/trips'
+import type { Trip } from '../data/trips'
 import { useCurrentUser } from './CurrentUserContext'
+import { loadTrips, saveTrips } from '../repositories/localStorageRepository'
 
 type TripsContextValue = {
   trips: Trip[]
@@ -13,49 +14,13 @@ type TripsContextValue = {
 }
 
 const TripsContext = createContext<TripsContextValue | null>(null)
-const STORAGE_KEY = 'lifer.trips'
-
-function isDestination(value: unknown): value is Destination {
-  if (typeof value !== 'object' || value === null) return false
-
-  const destination = value as Record<string, unknown>
-  return typeof destination.id === 'number'
-    && typeof destination.name === 'string'
-    && typeof destination.latitude === 'number'
-    && typeof destination.longitude === 'number'
-    && (destination.country === undefined || typeof destination.country === 'string')
-}
-
-function isTrip(value: unknown): value is Trip {
-  if (typeof value !== 'object' || value === null) return false
-
-  const trip = value as Record<string, unknown>
-  return typeof trip.id === 'string'
-    && (trip.userId === 'rosa' || trip.userId === 'finn')
-    && typeof trip.name === 'string'
-    && Array.isArray(trip.destinations)
-    && trip.destinations.every(isDestination)
-}
-
-function loadTrips(): Trip[] {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === null) return initialTrips
-
-  const parsed: unknown = JSON.parse(saved)
-  if (!Array.isArray(parsed) || !parsed.every(isTrip)) {
-    throw new Error('Saved trips have an invalid format.')
-  }
-
-  return parsed
-}
-
 export function TripsProvider({ children }: { children: ReactNode }) {
   const { currentUserId } = useCurrentUser()
   const [allTrips, setAllTrips] = useState<Trip[]>(loadTrips)
   const userTrips = allTrips.filter((trip) => trip.userId === currentUserId)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTrips))
+    saveTrips(allTrips)
   }, [allTrips])
 
   const findTrip = (tripId: string) => userTrips.find((trip) => trip.id === tripId)

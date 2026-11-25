@@ -11,7 +11,13 @@ type PageProps = {
 }
 
 function Page({ title, backTo, children }: PageProps) {
-  const { profiles, currentUserId, setCurrentUserId } = useCurrentUser()
+  const {
+    profiles,
+    profilesLoading,
+    profilesError,
+    currentUserId,
+    setCurrentUserId,
+  } = useCurrentUser()
 
   return (
     <main className="page">
@@ -23,6 +29,7 @@ function Page({ title, backTo, children }: PageProps) {
           Viewing as
           <select
             value={currentUserId}
+            disabled={profilesLoading}
             onChange={(event) => {
               const selectedUser = profiles.find((user) => user.id === event.target.value)
               if (!selectedUser) return
@@ -38,6 +45,7 @@ function Page({ title, backTo, children }: PageProps) {
           </select>
         </label>
       </div>
+      {profilesError && <p role="alert">Could not load profiles: {profilesError}</p>}
       <h1>{title}</h1>
       {children}
     </main>
