@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
 import Link from './Link'
+import { useCurrentUser } from '../contexts/CurrentUserContext'
+import { defaultUsers } from '../data/users'
+import { navigate } from '../utils/navigation'
 
 type PageProps = {
   title: string
@@ -8,9 +11,31 @@ type PageProps = {
 }
 
 function Page({ title, backTo, children }: PageProps) {
+  const { currentUserId, setCurrentUserId } = useCurrentUser()
+
   return (
     <main className="page">
-      {backTo && <Link to={backTo} className="back-link">← Back</Link>}
+      <div className="page-controls">
+        {backTo
+          ? <Link to={backTo} className="back-link">← Back</Link>
+          : <span />}
+        <label className="profile-picker">
+          Viewing as
+          <select
+            value={currentUserId}
+            onChange={(event) => {
+              const selectedUser = defaultUsers.find((user) => user.id === event.target.value)
+              if (!selectedUser) return
+              setCurrentUserId(selectedUser.id)
+              if (backTo) navigate('/')
+            }}
+          >
+            {defaultUsers.map((user) => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <h1>{title}</h1>
       {children}
     </main>

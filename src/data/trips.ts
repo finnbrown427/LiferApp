@@ -2,6 +2,7 @@ import type { Destination } from "./destination"
 
 export type Trip = {
   id: string
+  userId: string // fallback: userId: 'rosa' | 'finn'
   name: string
   destinations: Destination[]
 }
@@ -13,8 +14,8 @@ export function destinationId(destination: Destination) {
     .replace(/(^-|-$)/g, '')
 }
 
-export const trips: Trip[] = [
-  { id: 'rosa-euro', name: 'Rosas Europe trip', destinations: [
+export const initialTrips: Trip[] = [
+  { id: 'rosa-euro', userId: 'rosa', name: 'Rosas Europe trip', destinations: [
     {
         id: 2643743,
         name: 'London',
@@ -31,7 +32,7 @@ export const trips: Trip[] = [
       },
     ]
   },
-  { id: 'finn-aus', name: 'Finn Cairns', destinations: [
+  { id: 'finn-aus', userId: 'finn', name: 'Finn Cairns', destinations: [
     {
         id: 2172797,
         name: 'Cairns',
@@ -42,19 +43,3 @@ export const trips: Trip[] = [
     ] 
   },
 ]
-
-export function addDestination(tripId: string, destination: Destination) {
-  const trip = trips.find((item) => item.id === tripId)
-  if (!trip) return
-
-  trip.destinations = [...trip.destinations, destination]
-  return trip
-}
-
-export function removeDestination(tripId: string, destination: Destination) {
-  const trip = trips.find((item) => item.id === tripId)
-  if (!trip) return
-
-  trip.destinations = trip.destinations.filter((item) => item.id !== destination.id)
-  return trip
-}

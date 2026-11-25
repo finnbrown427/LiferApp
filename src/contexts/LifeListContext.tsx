@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { useCurrentUser } from './CurrentUserContext'
 
 type LifeListContextValue = {
     lifeList: Set<string> | null
@@ -7,36 +8,56 @@ type LifeListContextValue = {
 
 const LifeListContext = createContext<LifeListContextValue | null>(null)
 
-const STORAGE_KEY = 'lifer.lifeList'
+const STORAGE_KEY = 'lifer.lifeLists'
+const LEGACY_STORAGE_KEY = 'lifer.lifeList'
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item: unknown) => typeof item === 'string')
 }
 
-// gets life list from local storage
-function loadLifeList(): Set<string> | null {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === null) return null
+function isLifeListRecord(value: unknown): value is Record<string, string[]> {
+  return typeof value === 'object'
+    && value !== null
+    && !Array.isArray(value)
+    && Object.values(value).every(isStringArray)
+}
 
-  const parsed: unknown = JSON.parse(saved)
-  if (!isStringArray(parsed)) {
-    throw new Error('Saved life list has an invalid format.')
+function loadLifeLists(): Record<string, string[]> {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved !== null) {
+    const parsed: unknown = JSON.parse(saved)
+    if (!isLifeListRecord(parsed)) {
+      throw new Error('Saved life lists have an invalid format.')
+    }
+    return parsed
   }
 
-  return new Set(parsed)
+  const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY)
+  if (legacySaved === null) return {}
+
+  const legacyList: unknown = JSON.parse(legacySaved)
+  if (!isStringArray(legacyList)) {
+    throw new Error('Saved life list has an invalid format.')
+  }
+  return { finn: legacyList }
 }
 
 export function LifeListProvider({ children }: { children: ReactNode }) {
-  const [lifeList, setLifeList] = useState<Set<string> | null>(() => loadLifeList())
+  const { currentUserId } = useCurrentUser()
+  const [lifeLists, setLifeLists] = useState<Record<string, string[]>>(loadLifeLists)
+  const savedLifeList = lifeLists[currentUserId]
+  const lifeList = savedLifeList === undefined ? null : new Set(savedLifeList)
 
   useEffect(() => {
-    if (lifeList === null) {
-      localStorage.removeItem(STORAGE_KEY)
-      return
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lifeLists))
+  }, [lifeLists])
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...lifeList]))
-  }, [lifeList])
+  const setLifeList = (nextLifeList: Set<string>) => {
+    setLifeLists((currentLifeLists) => ({
+      ...currentLifeLists,
+      [currentUserId]: [...nextLifeList],
+    }))
+  }
 
   return (
     <LifeListContext.Provider value={{ lifeList, setLifeList }}>

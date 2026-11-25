@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import Page from '../components/Page'
 import { navigate } from '../utils/navigation'
-import { destinationId as destinationSlug, removeDestination, trips } from '../data/trips'
+import { destinationId as destinationSlug } from '../data/trips'
+import { useTrips } from '../contexts/TripsContext'
 import { hotspotsNearDestination, type DestinationHotspot } from '../data/ebird'
 import './DestinationPage.css'
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
-  const trip = trips.find((item) => item.id === tripId)
+  const { findTrip, removeDestination } = useTrips()
+  const trip = findTrip(tripId)
   const destination = trip?.destinations.find(
     (item) => destinationSlug(item) === destinationId,
   )

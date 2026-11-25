@@ -2,12 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
 import { useDestinationSearch, type Destination } from '../data/destination'
-import { addDestination as appendDestination, destinationId, trips } from '../data/trips'
+import { destinationId } from '../data/trips'
+import { useTrips } from '../contexts/TripsContext'
 import './TripPage.css'
 
 function TripPage({ tripId }: { tripId: string }) {
-  const trip = trips.find((item) => item.id === tripId)
-  const [destinations, setDestinations] = useState<Destination[]>(() => [...(trip?.destinations ?? [])])
+  const { findTrip, addDestination } = useTrips()
+  const trip = findTrip(tripId)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [destinationName, setDestinationName] = useState('')
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null)
@@ -32,7 +33,7 @@ function TripPage({ tripId }: { tripId: string }) {
     setIsModalOpen(false)
     setDestinationName('')
     setSelectedDestination(null)
-  } 
+  }
   
 
   const addDestinationHandler = (event: FormEvent<HTMLFormElement>) => {
@@ -40,8 +41,7 @@ function TripPage({ tripId }: { tripId: string }) {
 
     if (!selectedDestination) return
 
-    const updatedTrip = appendDestination(tripId, selectedDestination)
-    setDestinations(updatedTrip?.destinations ?? [...destinations, selectedDestination])
+    addDestination(tripId, selectedDestination)
     closeModal()
   }
 
@@ -51,7 +51,7 @@ function TripPage({ tripId }: { tripId: string }) {
         <div className="destination-section-heading">
           <div className="section-heading">
             <h2>Destinations</h2>
-            <span>{destinations.length}</span>
+            <span>{trip.destinations.length}</span>
           </div>
           <button
             className="primary-button"
@@ -63,7 +63,7 @@ function TripPage({ tripId }: { tripId: string }) {
         </div>
 
         <div className="destination-list">
-          {destinations.map((destination, index) => (
+          {trip.destinations.map((destination, index) => (
             <Link
               key={destination.id}
               to={`/trips/${trip.id}/destinations/${destinationId(destination)}`}

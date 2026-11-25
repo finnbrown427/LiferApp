@@ -2,18 +2,18 @@ import './Dashboard.css'
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
-import { trips, type Trip } from '../data/trips'
 import { importLifeListCsv } from '../data/ebird'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useTrips } from '../contexts/TripsContext'
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
-  const [dashboardTrips, setDashboardTrips] = useState<Trip[]>(() => [...trips])
   const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
 
-  // Hook for reading shared list state and its setter during render
+  // Read and update the selected user's life list.
   const { lifeList, setLifeList } = useLifeList()
+  const { trips: dashboardTrips, createTrip: addTrip } = useTrips()
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -37,17 +37,7 @@ function Dashboard() {
     const name = tripName.trim()
     if (!name) return
 
-
-
-    const id = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || `trip-${Date.now()}`
-
-    const newTrip: Trip = { id, name, destinations: [] }
-
-    trips.push(newTrip)
-    setDashboardTrips((currentTrips) => [...currentTrips, newTrip])
+    addTrip(name)
     closeModal()
   }
 
