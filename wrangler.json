@@ -1,5 +1,5 @@
 {
-  "name": "lifer",
+  "name": "liferapp",
   "compatibility_date": "2026-11-26",
   "main": "src/worker.ts",
   "assets": {
