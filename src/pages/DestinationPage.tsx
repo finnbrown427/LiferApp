@@ -15,6 +15,8 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
   const [hotspots, setHotspots] = useState<DestinationHotspot[]>([])
   const [isLoadingHotspots, setIsLoadingHotspots] = useState(false)
   const [hotspotError, setHotspotError] = useState('')
+  const [removeError, setRemoveError] = useState<string | null>(null)
+  const [isRemovingDestination, setIsRemovingDestination] = useState(false)
 
   useEffect(() => {
     if (!destination) return
@@ -36,11 +38,21 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     return <Page title="Destination not found" backTo={`/trips/${tripId}`} />
   }
 
-  const deleteDestination = () => {
+  const deleteDestination = async () => {
     if (!window.confirm(`Remove ${destination.name} from this trip?`)) return
 
-    removeDestination(tripId, destination)
-    navigate(`/trips/${tripId}`)
+    setIsRemovingDestination(true)
+    setRemoveError(null)
+    try {
+      await removeDestination(tripId, destination)
+      navigate(`/trips/${tripId}`)
+    } catch (error) {
+      setRemoveError(
+        error instanceof Error ? error.message : 'Could not remove destination.',
+      )
+    } finally {
+      setIsRemovingDestination(false)
+    }
   }
 
   return (
@@ -83,12 +95,14 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
         )}
       </section>
       <div className="destination-actions">
+        {removeError && <p role="alert">{removeError}</p>}
         <button
           className="delete-destination-button"
           type="button"
           onClick={deleteDestination}
+          disabled={isRemovingDestination}
         >
-          Remove destination
+          {isRemovingDestination ? 'Removing...' : 'Remove destination'}
         </button>
       </div>
     </Page>

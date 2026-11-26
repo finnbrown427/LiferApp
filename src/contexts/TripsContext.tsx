@@ -8,6 +8,10 @@ import {
   createTrip as createTripInRepository,
   removeTrip as removeTripFromRepository,
 } from '../repositories/tripRepository'
+import {
+  addDestination as createDestInRepository,
+  removeDestination as removeDestFromRepository
+} from '../repositories/destinationRepository'
 
 type TripsContextValue = {
   trips: Trip[]
@@ -16,8 +20,8 @@ type TripsContextValue = {
   findTrip: (tripId: string) => Trip | undefined
   createTrip: (name: string) => Promise<Trip>
   removeTrip: (tripId: string) => Promise<void>
-  addDestination: (tripId: string, destination: Destination) => void
-  removeDestination: (tripId: string, destination: Destination) => void
+  addDestination: (tripId: string, destination: Destination) => Promise<void>
+  removeDestination: (tripId: string, destination: Destination) => Promise<void>
 }
 
 const TripsContext = createContext<TripsContextValue | null>(null)
@@ -61,15 +65,23 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     return trip
   }
 
-  const addDestination = (tripId: string, destination: Destination) => {
+  const deleteTrip = async (tripId: string) => {
+    await removeTripFromRepository(tripId)
+    setTrips((currentTrips) => currentTrips.filter((trip) => trip.id !== tripId))
+  }
+
+
+  const addDestination = async (tripId: string, destination: Destination) => {
+    const savedDestination = await createDestInRepository(tripId, destination)
     setTrips((currentTrips) => currentTrips.map((trip) => (
       trip.id === tripId && trip.userId === currentUserId
-        ? { ...trip, destinations: [...trip.destinations, destination] }
+        ? { ...trip, destinations: [...trip.destinations, savedDestination] }
         : trip
     )))
   }
 
-  const removeDestination = (tripId: string, destination: Destination) => {
+  const removeDestination = async (tripId: string, destination: Destination) => {
+    await removeDestFromRepository(tripId, destination.id)
     setTrips((currentTrips) => currentTrips.map((trip) => (
       trip.id === tripId && trip.userId === currentUserId
         ? { ...trip, destinations: trip.destinations.filter((item) => item.id !== destination.id) }
@@ -77,10 +89,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     )))
   }
 
-  const deleteTrip = async (tripId: string) => {
-    await removeTripFromRepository(tripId)
-    setTrips((currentTrips) => currentTrips.filter((trip) => trip.id !== tripId))
-  }
 
   return (
     <TripsContext.Provider value={{

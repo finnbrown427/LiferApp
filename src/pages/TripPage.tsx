@@ -13,6 +13,8 @@ function TripPage({ tripId }: { tripId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [destinationName, setDestinationName] = useState('')
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null)
+  const [destinationError, setDestinationError] = useState<string | null>(null)
+  const [isAddingDestination, setIsAddingDestination] = useState(false)
   const searchResults = useDestinationSearch(destinationName)
 
   useEffect(() => {
@@ -34,16 +36,27 @@ function TripPage({ tripId }: { tripId: string }) {
     setIsModalOpen(false)
     setDestinationName('')
     setSelectedDestination(null)
+    setDestinationError(null)
   }
   
 
-  const addDestinationHandler = (event: FormEvent<HTMLFormElement>) => {
+  const addDestinationHandler = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!selectedDestination) return
 
-    addDestination(tripId, selectedDestination)
-    closeModal()
+    setIsAddingDestination(true)
+    setDestinationError(null)
+    try {
+      await addDestination(tripId, selectedDestination)
+      closeModal()
+    } catch (error) {
+      setDestinationError(
+        error instanceof Error ? error.message : 'Could not add destination.',
+      )
+    } finally {
+      setIsAddingDestination(false)
+    }
   }
 
   return (
@@ -142,12 +155,23 @@ function TripPage({ tripId }: { tripId: string }) {
                 ))}
               </div>
 
+              {destinationError && <p role="alert">{destinationError}</p>}
+
               <div className="form-actions">
-                <button className="secondary-button" type="button" onClick={closeModal}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isAddingDestination}
+                >
                   Cancel
                 </button>
-                <button className="primary-button" type="submit" disabled={!selectedDestination}>
-                  Add destination
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={!selectedDestination || isAddingDestination}
+                >
+                  {isAddingDestination ? 'Adding...' : 'Add destination'}
                 </button>
               </div>
             </form>
