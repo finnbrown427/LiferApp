@@ -4,5 +4,5 @@ export const defaultUsers = [
   { id: 'finn', name: 'Finn' },
 ] as const
 
-export type UserId = (typeof defaultUsers)[number]['id']
+export type UserId = string
 

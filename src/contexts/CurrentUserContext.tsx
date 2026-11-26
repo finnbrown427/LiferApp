@@ -1,7 +1,7 @@
 // Shares the selected preset profile across the app and persists the selection in local storage.
 // Retrieves profiles from database
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import { defaultUsers, type UserId } from '../data/users'
+import type { UserId } from '../data/users'
 import { loadProfiles, type Profile } from '../repositories/profileRepository'
 import { loadCurrentUser, saveCurrentUser } from '../repositories/localStorageRepository'
 
@@ -17,7 +17,7 @@ type CurrentUserContextValue = {
 const CurrentUserContext = createContext<CurrentUserContextValue | null>(null)
 
 function isUserId(value: string | null): value is UserId {
-  return defaultUsers.some((user) => user.id === value)
+  return typeof value === 'string' && value.length > 0
 }
 
 function getInitialUserId(): UserId {

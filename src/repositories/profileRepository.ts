@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { defaultUsers, type UserId } from '../data/users'
+import type { UserId } from '../data/users'
 
 export type Profile = {
   id: UserId
@@ -21,13 +21,12 @@ export async function loadProfiles(): Promise<Profile[]> {
       || profile === null
       || typeof profile.id !== 'string'
       || typeof profile.display_name !== 'string'
-      || !defaultUsers.some((user) => user.id === profile.id)
     ) {
       return []
     }
 
     return [{
-      id: profile.id as UserId,
+      id: profile.id,
       display_name: profile.display_name,
     }]
   })
