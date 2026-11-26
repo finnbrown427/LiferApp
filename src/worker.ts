@@ -1,16 +1,12 @@
 type Env = {
+  ASSETS: {
+    fetch(request: Request): Promise<Response>
+  }
   EBIRD_API_TOKEN?: string
 }
 
-type PagesContext = {
-  request: Request
-  env: Env
-  params: {
-    path?: string[]
-  }
-}
-
 const EBIRD_API_ORIGIN = 'https://api.ebird.org'
+const EBIRD_API_PREFIX = '/api/ebird/'
 const REGION_CODE_PATTERN = /^[A-Z0-9]{1,3}(?:-[A-Z0-9]{1,3})*$/
 const SPECIES_CODE_PATTERN = /^[a-z0-9-]{2,20}$/
 
@@ -99,15 +95,26 @@ function isAllowedRequest(path: string[], searchParams: URLSearchParams): boolea
   return false
 }
 
-export async function onRequestGet({
-  request,
-  env,
-  params,
-}: PagesContext): Promise<Response> {
-  const path = params.path
-  const requestUrl = new URL(request.url)
+async function handleEbirdRequest(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed.', {
+      status: 405,
+      headers: { Allow: 'GET' },
+    })
+  }
 
-  if (!path || !isAllowedRequest(path, requestUrl.searchParams)) {
+  const requestUrl = new URL(request.url)
+  let path: string[]
+  try {
+    path = requestUrl.pathname
+      .slice(EBIRD_API_PREFIX.length)
+      .split('/')
+      .map((segment) => decodeURIComponent(segment))
+  } catch {
+    return new Response('Invalid eBird request path.', { status: 400 })
+  }
+
+  if (!path.length || !isAllowedRequest(path, requestUrl.searchParams)) {
     return new Response('Unsupported eBird request.', { status: 400 })
   }
 
@@ -134,4 +141,15 @@ export async function onRequestGet({
       'Content-Type': upstreamResponse.headers.get('Content-Type') ?? 'application/json',
     },
   })
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const { pathname } = new URL(request.url)
+    if (pathname === '/api/ebird' || pathname.startsWith(EBIRD_API_PREFIX)) {
+      return handleEbirdRequest(request, env)
+    }
+
+    return env.ASSETS.fetch(request)
+  },
 }
