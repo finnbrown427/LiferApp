@@ -26,7 +26,7 @@ function Page({ title, backTo, children }: PageProps) {
           ? <Link to={backTo} className="back-link">← Back</Link>
           : <span />}
         <label className="profile-picker">
-          Viewing as
+          who might u be?:
           <select
             value={currentUserId}
             disabled={profilesLoading}
