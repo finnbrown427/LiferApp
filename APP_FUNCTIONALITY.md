@@ -36,4 +36,4 @@ Lifer is a birding trip-planning app. It lets birders keep a personal life list,
 - Life lists, trips, and destinations are stored in browser local storage; they are not synced between browsers or devices or stored in Supabase.
 - The app does not currently provide sign-in, cloud storage, trip editing or deletion, or a UI for comparing destination species against the life list.
 - The eBird data module also contains functions for retrieving species in a region and finding species missing from a life list, but those functions are not currently exposed in the app's pages.
-- eBird API requests require the `VITE_EBIRD_KEY` environment variable.
+- eBird API requests are served by a Cloudflare Worker and require the server-side `EBIRD_API_TOKEN` environment variable; do not expose this token through a `VITE_` variable.

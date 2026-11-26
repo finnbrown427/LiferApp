@@ -1,6 +1,5 @@
 import type { Destination } from '../data/destination'
 import { initialTrips, type Trip } from '../data/trips'
-import { defaultUsers } from '../data/users'
 
 const LIFE_LISTS_KEY = 'lifer.lifeLists'
 const LEGACY_LIFE_LIST_KEY = 'lifer.lifeList'
@@ -66,7 +65,7 @@ function isTrip(value: unknown): value is Trip {
 
   const trip = value as Record<string, unknown>
   return typeof trip.id === 'string'
-    && defaultUsers.some((user) => user.id === trip.userId)
+    && typeof trip.userId === 'string'
     && typeof trip.name === 'string'
     && Array.isArray(trip.destinations)
     && trip.destinations.every(isDestination)
