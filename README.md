@@ -46,3 +46,13 @@ EBIRD_API_TOKEN=your-eBird-token
 
 `.dev.vars` is ignored by Git. To run the Pages Function locally, build the app
 and serve it with Wrangler using `npx wrangler pages dev dist`.
+
+## Supabase configuration
+
+The Vite build requires `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY`. Set both as build-time variables in the
+Cloudflare project for production (and preview deployments, if used), then
+redeploy. These must be available to the build; setting them only as runtime
+Worker variables will not add them to the already-built browser app. Local
+development can use the same variable names in the ignored root `.env` file.
+Builds fail with a list of missing variables if either is unset.
