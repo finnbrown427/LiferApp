@@ -1,5 +1,5 @@
 import './Dashboard.css'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
 import { importLifeList } from '../application/lifeList'
@@ -57,6 +57,22 @@ function Dashboard() {
     }
   }
 
+  const handleLifeListUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    if (!file) return
+
+    try {
+      const csvText = await file.text()
+      const importedList = importLifeList(csvText)
+
+      await setLifeList(importedList)
+      setLifeListStatus('')
+    } catch (error) {
+      setLifeListStatus(
+        error instanceof Error ? error.message : 'Could not import the CSV file.',
+      )
+    }
+  }
   return (
     <Page title="Dashboard">
       <section className="life-list-feature" aria-labelledby="life-list-label">
@@ -80,24 +96,7 @@ function Dashboard() {
               className="life-list-upload-input"
               type="file"
               accept=".csv,text/csv"
-              onChange={async (event) => {
-                const file = event.currentTarget.files?.[0]
-                if (!file) return
-
-                try {
-                  const csvText = await file.text()
-                  const lifeList = importLifeList(csvText)
-
-                  // Save the parsed list in the provider so other pages can access it.
-                  setLifeList(lifeList)
-
-                  setLifeListStatus('')
-                } catch (error) {
-                  setLifeListStatus(
-                    error instanceof Error ? error.message : 'Could not import the CSV file.'
-                  )
-                }
-              }}
+              onChange={handleLifeListUpload}
             />
             {/* TODO: add instructions for how to get CSV */}
             <label className="life-list-upload-button" htmlFor="life-list-upload">
