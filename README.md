@@ -33,25 +33,26 @@ See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rule
 
 ## eBird API access
 
-The browser app requests eBird data through a Cloudflare Pages Function. The eBird
-API token is only used by that Function; do not put it in a `VITE_` variable.
+The browser app requests eBird data through the Cloudflare Worker. The eBird API
+token is only used by the Worker; do not put it in a `VITE_` variable.
 
-Set `EBIRD_API_TOKEN` as a secret in the Cloudflare Pages project's production
-environment (and preview environment if you use preview deployments). For local
-Pages Function development, put the token in a root `.dev.vars` file:
+Set `EBIRD_API_TOKEN` as a secret in the Cloudflare Worker environment (and
+preview environment if you use preview deployments). For local Worker
+development, put the token in a root `.dev.vars` file:
 
 ```text
 EBIRD_API_TOKEN=your-eBird-token
 ```
 
-`.dev.vars` is ignored by Git. To run the Pages Function locally, build the app
-and serve it with Wrangler using `npx wrangler pages dev dist`.
+`.dev.vars` is ignored by Git. Build the app, then run `npx wrangler dev` to
+serve the Worker and its assets locally. Running `npm run dev` starts Vite only
+and does not run the Worker, so eBird requests will not work in that mode.
 
 ## Supabase configuration
 
 The Vite build requires `VITE_SUPABASE_URL` and
 `VITE_SUPABASE_PUBLISHABLE_KEY`. Set both as build-time variables in the
-Cloudflare project for production (and preview deployments, if used), then
+Cloudflare Worker project for production (and preview deployments, if used), then
 redeploy. These must be available to the build; setting them only as runtime
 Worker variables will not add them to the already-built browser app. Local
 development can use the same variable names in the ignored root `.env` file.

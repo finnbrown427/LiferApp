@@ -7,6 +7,14 @@ const BASE = "/api/ebird";
 
 async function api<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
+  const contentType = res.headers.get('Content-Type')?.toLowerCase() ?? '';
+
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      'The eBird endpoint returned HTML instead of JSON. Check that the Worker routes `/api/ebird/*` to its eBird handler and that `EBIRD_API_TOKEN` is configured.',
+    );
+  }
+
   if (!res.ok) throw new Error(`eBird API ${res.status} for ${path}`);
   return res.json() as Promise<T>;
 }
