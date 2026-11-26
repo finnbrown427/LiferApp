@@ -1,16 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
-import { useDestinationSearch, type Destination } from '../data/destination'
-import { addDestination as appendDestination, destinationId, trips } from '../data/trips'
+import { useDestinationSearch } from '../application/destinationSearch'
+import type { Destination } from '../data/destination'
+import { destinationId } from '../data/trips'
+import { useTrips } from '../contexts/TripsContext'
 import './TripPage.css'
 
 function TripPage({ tripId }: { tripId: string }) {
-  const trip = trips.find((item) => item.id === tripId)
-  const [destinations, setDestinations] = useState<Destination[]>(() => [...(trip?.destinations ?? [])])
+  const { findTrip, addDestination } = useTrips()
+  const trip = findTrip(tripId)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [destinationName, setDestinationName] = useState('')
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null)
+  const [destinationError, setDestinationError] = useState<string | null>(null)
+  const [isAddingDestination, setIsAddingDestination] = useState(false)
   const searchResults = useDestinationSearch(destinationName)
 
   useEffect(() => {
@@ -32,17 +36,27 @@ function TripPage({ tripId }: { tripId: string }) {
     setIsModalOpen(false)
     setDestinationName('')
     setSelectedDestination(null)
-  } 
+    setDestinationError(null)
+  }
   
 
-  const addDestinationHandler = (event: FormEvent<HTMLFormElement>) => {
+  const addDestinationHandler = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!selectedDestination) return
 
-    const updatedTrip = appendDestination(tripId, selectedDestination)
-    setDestinations(updatedTrip?.destinations ?? [...destinations, selectedDestination])
-    closeModal()
+    setIsAddingDestination(true)
+    setDestinationError(null)
+    try {
+      await addDestination(tripId, selectedDestination)
+      closeModal()
+    } catch (error) {
+      setDestinationError(
+        error instanceof Error ? error.message : 'Could not add destination.',
+      )
+    } finally {
+      setIsAddingDestination(false)
+    }
   }
 
   return (
@@ -51,7 +65,7 @@ function TripPage({ tripId }: { tripId: string }) {
         <div className="destination-section-heading">
           <div className="section-heading">
             <h2>Destinations</h2>
-            <span>{destinations.length}</span>
+            <span>{trip.destinations.length}</span>
           </div>
           <button
             className="primary-button"
@@ -63,7 +77,7 @@ function TripPage({ tripId }: { tripId: string }) {
         </div>
 
         <div className="destination-list">
-          {destinations.map((destination, index) => (
+          {trip.destinations.map((destination, index) => (
             <Link
               key={destination.id}
               to={`/trips/${trip.id}/destinations/${destinationId(destination)}`}
@@ -141,12 +155,23 @@ function TripPage({ tripId }: { tripId: string }) {
                 ))}
               </div>
 
+              {destinationError && <p role="alert">{destinationError}</p>}
+
               <div className="form-actions">
-                <button className="secondary-button" type="button" onClick={closeModal}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isAddingDestination}
+                >
                   Cancel
                 </button>
-                <button className="primary-button" type="submit" disabled={!selectedDestination}>
-                  Add destination
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={!selectedDestination || isAddingDestination}
+                >
+                  {isAddingDestination ? 'Adding...' : 'Add destination'}
                 </button>
               </div>
             </form>

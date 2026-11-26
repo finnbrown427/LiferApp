@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react'
 import Page from '../components/Page'
 import { navigate } from '../utils/navigation'
-import { destinationId as destinationSlug, removeDestination, trips } from '../data/trips'
-import { hotspotsNearDestination, type DestinationHotspot } from '../data/ebird'
+import { useTrips } from '../contexts/TripsContext'
+import { loadDestinationHotspots } from '../application/destinationHotspots'
+import type { DestinationHotspot } from '../data/ebird'
 import './DestinationPage.css'
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
-  const trip = trips.find((item) => item.id === tripId)
+  const { findTrip, removeDestination } = useTrips()
+  const trip = findTrip(tripId)
   const destination = trip?.destinations.find(
-    (item) => destinationSlug(item) === destinationId,
+    (item) => String(item.id) === destinationId,
   )
   const [hotspots, setHotspots] = useState<DestinationHotspot[]>([])
   const [isLoadingHotspots, setIsLoadingHotspots] = useState(false)
   const [hotspotError, setHotspotError] = useState('')
+  const [removeError, setRemoveError] = useState<string | null>(null)
+  const [isRemovingDestination, setIsRemovingDestination] = useState(false)
 
   useEffect(() => {
     if (!destination) return
@@ -20,8 +24,8 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     setIsLoadingHotspots(true)
     setHotspotError('')
 
-    hotspotsNearDestination(destination.latitude, destination.longitude)
-      .then((results) => setHotspots(results.slice(0, 3)))
+    loadDestinationHotspots(destination.latitude, destination.longitude)
+      .then((results) => setHotspots(results))
       .catch((error: unknown) => {
         setHotspotError(error instanceof Error ? error.message : 'Could not load hotspots.')
       })
@@ -34,11 +38,21 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     return <Page title="Destination not found" backTo={`/trips/${tripId}`} />
   }
 
-  const deleteDestination = () => {
+  const deleteDestination = async () => {
     if (!window.confirm(`Remove ${destination.name} from this trip?`)) return
 
-    removeDestination(tripId, destination)
-    navigate(`/trips/${tripId}`)
+    setIsRemovingDestination(true)
+    setRemoveError(null)
+    try {
+      await removeDestination(tripId, destination)
+      navigate(`/trips/${tripId}`)
+    } catch (error) {
+      setRemoveError(
+        error instanceof Error ? error.message : 'Could not remove destination.',
+      )
+    } finally {
+      setIsRemovingDestination(false)
+    }
   }
 
   return (
@@ -81,12 +95,14 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
         )}
       </section>
       <div className="destination-actions">
+        {removeError && <p role="alert">{removeError}</p>}
         <button
           className="delete-destination-button"
           type="button"
           onClick={deleteDestination}
+          disabled={isRemovingDestination}
         >
-          Remove destination
+          {isRemovingDestination ? 'Removing...' : 'Remove destination'}
         </button>
       </div>
     </Page>

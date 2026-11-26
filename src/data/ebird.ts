@@ -42,6 +42,8 @@ export type DestinationHotspot = {
   url: string;
 };
 
+export type LifeList = Set<string>
+
 /** parse downloaded csv text with papaparse */
 export function importLifeListCsv(csvText: string) {
   const { data, errors } = Papa.parse<Record<string, string>>(csvText, {

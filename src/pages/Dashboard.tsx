@@ -1,19 +1,26 @@
 import './Dashboard.css'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react'
 import Link from '../components/Link'
 import Page from '../components/Page'
-import { trips, type Trip } from '../data/trips'
-import { importLifeListCsv } from '../data/ebird'
+import { importLifeList } from '../application/lifeList'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useTrips } from '../contexts/TripsContext'
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tripName, setTripName] = useState('')
-  const [dashboardTrips, setDashboardTrips] = useState<Trip[]>(() => [...trips])
+  const [tripError, setTripError] = useState<string | null>(null)
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false)
   const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
 
-  // Hook for reading shared list state and its setter during render
+  // Read and update the selected user's life list.
   const { lifeList, setLifeList } = useLifeList()
+  const {
+    trips: dashboardTrips,
+    isLoading: isLoadingTrips,
+    error: tripsError,
+    createTrip: addTrip,
+  } = useTrips()
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -29,28 +36,43 @@ function Dashboard() {
   const closeModal = () => {
     setIsModalOpen(false)
     setTripName('')
+    setTripError(null)
   }
 
-  const createTrip = (event: FormEvent<HTMLFormElement>) => {
+  const createTrip = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const name = tripName.trim()
     if (!name) return
 
-
-
-    const id = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || `trip-${Date.now()}`
-
-    const newTrip: Trip = { id, name, destinations: [] }
-
-    trips.push(newTrip)
-    setDashboardTrips((currentTrips) => [...currentTrips, newTrip])
-    closeModal()
+    setIsCreatingTrip(true)
+    setTripError(null)
+    try {
+      await addTrip(name)
+      closeModal()
+    } catch (error) {
+      setTripError(error instanceof Error ? error.message : 'Could not create trip.')
+    } finally {
+      setIsCreatingTrip(false)
+    }
   }
 
+  const handleLifeListUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    if (!file) return
+
+    try {
+      const csvText = await file.text()
+      const importedList = importLifeList(csvText)
+
+      await setLifeList(importedList)
+      setLifeListStatus('')
+    } catch (error) {
+      setLifeListStatus(
+        error instanceof Error ? error.message : 'Could not import the CSV file.',
+      )
+    }
+  }
   return (
     <Page title="Dashboard">
       <section className="life-list-feature" aria-labelledby="life-list-label">
@@ -74,24 +96,7 @@ function Dashboard() {
               className="life-list-upload-input"
               type="file"
               accept=".csv,text/csv"
-              onChange={async (event) => {
-                const file = event.currentTarget.files?.[0]
-                if (!file) return
-
-                try {
-                  const csvText = await file.text()
-                  const lifeList = importLifeListCsv(csvText)
-
-                  // Save the parsed list in the provider so other pages can access it.
-                  setLifeList(lifeList)
-
-                  setLifeListStatus('')
-                } catch (error) {
-                  setLifeListStatus(
-                    error instanceof Error ? error.message : 'Could not import the CSV file.'
-                  )
-                }
-              }}
+              onChange={handleLifeListUpload}
             />
             {/* TODO: add instructions for how to get CSV */}
             <label className="life-list-upload-button" htmlFor="life-list-upload">
@@ -110,6 +115,8 @@ function Dashboard() {
       {lifeListStatus && <p role="alert">{lifeListStatus}</p>}
 
       <section className="trip-grid" aria-label="Trips">
+        {isLoadingTrips && <p>Loading trips...</p>}
+        {tripsError && <p role="alert">Could not load trips: {tripsError}</p>}
         {dashboardTrips.map((trip) => (
           <Link
             key={trip.id}
@@ -162,12 +169,19 @@ function Dashboard() {
                 />
               </label>
 
+              {tripError && <p role="alert">{tripError}</p>}
+
               <div className="form-actions">
-                <button className="secondary-button" type="button" onClick={closeModal}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isCreatingTrip}
+                >
                   Cancel
                 </button>
-                <button className="primary-button" type="submit">
-                  Create trip
+                <button className="primary-button" type="submit" disabled={isCreatingTrip}>
+                  {isCreatingTrip ? 'Creating...' : 'Create trip'}
                 </button>
               </div>
             </form>

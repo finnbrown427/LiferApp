@@ -1,47 +1,63 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { useCurrentUser } from './CurrentUserContext'
+import { loadLifeList, updateLifeList } from '../repositories/lifeListRepository'
 
 type LifeListContextValue = {
     lifeList: Set<string> | null
-    setLifeList: (lifeList: Set<string>) => void
-}
+    setLifeList: (lifeList: Set<string>) => Promise<void>
+    isLoading: boolean
+    error: string | null
+  }
 
 const LifeListContext = createContext<LifeListContextValue | null>(null)
 
-const STORAGE_KEY = 'lifer.lifeList'
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item: unknown) => typeof item === 'string')
-}
-
-// gets life list from local storage
-function loadLifeList(): Set<string> | null {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === null) return null
-
-  const parsed: unknown = JSON.parse(saved)
-  if (!isStringArray(parsed)) {
-    throw new Error('Saved life list has an invalid format.')
-  }
-
-  return new Set(parsed)
-}
-
 export function LifeListProvider({ children }: { children: ReactNode }) {
-  const [lifeList, setLifeList] = useState<Set<string> | null>(() => loadLifeList())
+  const { currentUserId } = useCurrentUser()
+  const [lifeList, setLifeListState] = useState<Set<string> | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
 
   useEffect(() => {
-    if (lifeList === null) {
-      localStorage.removeItem(STORAGE_KEY)
-      return
-    }
+    let active = true
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...lifeList]))
-  }, [lifeList])
+    setIsLoading(true)
+    setError(null)
+
+  void loadLifeList(currentUserId)
+    .then((loadedList) => {
+      if (active) setLifeListState(loadedList)
+    })
+    .catch((cause: unknown) => {
+      if (active) {
+        setError(cause instanceof Error ? cause.message : 'Could not load life list.')
+      }
+    })
+    .finally(() => {
+      if (active) setIsLoading(false)
+    })
+
+  return () => {
+    active = false
+  }
+}, [currentUserId])
+
+const saveLifeList = async (nextLifeList: Set<string>) => {
+  await updateLifeList(currentUserId, nextLifeList)
+  setLifeListState(new Set(nextLifeList))
+}
 
   return (
-    <LifeListContext.Provider value={{ lifeList, setLifeList }}>
-      {children}
-    </LifeListContext.Provider>
+<LifeListContext.Provider
+  value={{
+    lifeList,
+    isLoading,
+    error,
+    setLifeList: saveLifeList,
+  }}
+>
+  {children}
+</LifeListContext.Provider>
   )
 }
 
