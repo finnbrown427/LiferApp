@@ -38,9 +38,12 @@ function AppRoutes() {
 }
 
 function App() {
-  const { session, isLoading, initializationError, signOut } = useAuth()
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  const [signOutError, setSignOutError] = useState<string | null>(null)
+  const { session, isLoading, initializationError } = useAuth()
+  // replace ^ with v to use log out function
+  // const { session, isLoading, initializationError, signOut } = useAuth()
+
+  // const [isSigningOut, setIsSigningOut] = useState(false)
+  // const [signOutError, setSignOutError] = useState<string | null>(null)
 
   if (isLoading) {
     return (
