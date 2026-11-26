@@ -1,16 +1,12 @@
 // Data layer for hotspot and species data from Ebird API and CSVs
-// Needs VITE_EBIRD_KEY in .env
 // FUTURE: credit ebird for data
 
 import Papa from 'papaparse';
 
-const BASE = "https://api.ebird.org/v2";
-const KEY = import.meta.env.VITE_EBIRD_KEY as string;
+const BASE = "/api/ebird";
 
 async function api<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "X-eBirdApiToken": KEY },
-  });
+  const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`eBird API ${res.status} for ${path}`);
   return res.json() as Promise<T>;
 }

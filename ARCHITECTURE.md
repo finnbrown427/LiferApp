@@ -37,8 +37,6 @@ Browser APIs / Supabase / third-party APIs
 ## Other Remaining Work
 
 - Add tests for profile validation, persistence migration, CSV parsing, route lookup, and provider state.
-- Use authentication or server-controlled profile access before relying on Supabase as private user data storage. The current anonymous RLS policies deliberately allow shared demo access.
-- Keep profile IDs and profile records synchronized rather than maintaining separate profile definitions.
 
 ## Refactor Changes
 
