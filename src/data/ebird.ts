@@ -42,6 +42,8 @@ export type RankedHotspot = {
 export type DestinationHotspot = {
   locId: string;
   locName: string;
+  lat: number;
+  lng: number;
   totalSpecies: number;
   url: string;
 };
@@ -150,6 +152,8 @@ export async function hotspotsNearDestination(
   const hotspots = await api<Array<{
     locId: string;
     locName: string;
+    lat: number;
+    lng: number;
     numSpeciesAllTime?: number;
   }>>(
     `/ref/hotspot/geo?lat=${latitude}&lng=${longitude}&dist=${distanceKm}&fmt=json&cap=500`
@@ -159,6 +163,8 @@ export async function hotspotsNearDestination(
     .map((hotspot) => ({
       locId: hotspot.locId,
       locName: hotspot.locName,
+      lat: hotspot.lat,
+      lng: hotspot.lng,
       totalSpecies: hotspot.numSpeciesAllTime ?? 0,
       url: `https://ebird.org/hotspot/${hotspot.locId}`,
     }))
