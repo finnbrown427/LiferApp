@@ -83,6 +83,11 @@
   background: var(--color-background);
 }
 
+.recent-species-image--placeholder {
+  object-fit: contain;
+  padding: 8px;
+}
+
 .recent-species-image-credit {
   overflow-wrap: anywhere;
 }

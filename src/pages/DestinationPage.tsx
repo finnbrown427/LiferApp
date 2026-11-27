@@ -223,14 +223,12 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                           <ol className="recent-species-list">
                             {missingSpecies.map((species) => (
                               <li key={species.speciesCode} className="recent-species-row">
-                                {species.image && (
-                                  <img
-                                    className="recent-species-image"
-                                    src={species.image.imageUrl}
-                                    alt=""
-                                    loading="lazy"
-                                  />
-                                )}
+                                <img
+                                  className={`recent-species-image${species.image ? '' : ' recent-species-image--placeholder'}`}
+                                  src={species.image?.imageUrl ?? '/favicon.png'}
+                                  alt=""
+                                  loading="lazy"
+                                />
                                 <div className="hotspot-details">
                                   <a
                                     href={`https://ebird.org/species/${species.speciesCode}`}
