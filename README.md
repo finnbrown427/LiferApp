@@ -31,22 +31,91 @@ If you are developing a production application, we recommend enabling type-aware
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
 
-## eBird API access
+## Cloudflare Wrangler workflows
 
-The browser app requests eBird data through the Cloudflare Worker. The eBird API
-token is only used by the Worker; do not put it in a `VITE_` variable.
+This project uses `src/worker.ts` as its Cloudflare Worker. The Worker serves
+the built browser app from `dist` and proxies `/api/ebird/*` requests to eBird,
+adding the eBird API token on the server side. Do not put that token in a
+`VITE_` variable.
 
-Set `EBIRD_API_TOKEN` as a secret in the Cloudflare Worker environment (and
-preview environment if you use preview deployments). For local Worker
-development, put the token in a root `.dev.vars` file:
+### Build the browser app
+
+Run this before testing or deploying the Worker so `dist` contains the latest
+app. The build needs `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` available in the environment or root `.env`
+file.
+
+```sh
+npm run build
+```
+
+### Run the Vite development server
+
+```sh
+npm run dev
+```
+
+This starts Vite with hot reload, but does not run the Cloudflare Worker or its
+eBird proxy. Use it for frontend work that does not need `/api/ebird`.
+Similarly, `npm run preview` serves the built Vite app only; it is not a
+Cloudflare Worker preview.
+
+### Run the Worker locally
+
+Put the token in a root `.dev.vars` file:
 
 ```text
 EBIRD_API_TOKEN=your-eBird-token
 ```
 
-`.dev.vars` is ignored by Git. Build the app, then run `npx wrangler dev` to
-serve the Worker and its assets locally. Running `npm run dev` starts Vite only
-and does not run the Worker, so eBird requests will not work in that mode.
+`.dev.vars` is ignored by Git. After building, run:
+
+```sh
+npx wrangler dev
+```
+
+This runs the Worker locally and serves the built app. Wrangler reads
+`.dev.vars`, so the local eBird proxy works without deploying or pushing code
+to Git. Re-run `npm run build` after frontend changes so the `dist` assets are
+up to date.
+
+### Create a Cloudflare Preview
+
+After building and logging in to Cloudflare with `npx wrangler login`, run:
+
+```sh
+npx wrangler preview
+```
+
+This uploads the current local Worker and `dist` assets as a Cloudflare Preview;
+it does not require a Git push and does not deploy to production. Wrangler
+Preview is currently an open-beta feature. Local `.dev.vars` is for local
+development; configure the eBird token for the Preview separately:
+
+```sh
+npx wrangler preview secret put EBIRD_API_TOKEN
+```
+
+Wrangler prompts for the secret. Preview secrets are separate from production
+Worker secrets.
+
+### Deploy to production
+
+After building, configure the production Worker secret (Wrangler prompts for
+its value) with:
+
+```sh
+npx wrangler secret put EBIRD_API_TOKEN
+```
+
+The Worker must exist before you can set its secret. For a first deployment,
+run `npx wrangler deploy` once to create it, then set the secret. For later code
+changes, run `npx wrangler deploy` to publish the current local Worker and
+`dist` assets.
+
+`npx wrangler deploy` uploads the current local Worker and `dist` assets to the
+production Worker configured in `wrangler.json`. It does not require a Git
+push. Only run it when you intend to update the production app.
 
 ## Supabase configuration
 

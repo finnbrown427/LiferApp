@@ -3,36 +3,93 @@ import Page from '../components/Page'
 import { navigate } from '../utils/navigation'
 import { useTrips } from '../contexts/TripsContext'
 import { loadDestinationHotspots } from '../application/destinationHotspots'
-import type { DestinationHotspot } from '../data/ebird'
+import {
+  rankHotspotSpeciesByRegionalFrequency,
+  type DestinationHotspot,
+  type HotspotSpeciesRanking,
+} from '../data/ebird'
+import { useLifeList } from '../contexts/LifeListContext'
 import './DestinationPage.css'
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
   const { findTrip, removeDestination } = useTrips()
+  const { lifeList, isLoading: isLoadingLifeList, error: lifeListError } = useLifeList()
   const trip = findTrip(tripId)
   const destination = trip?.destinations.find(
     (item) => String(item.id) === destinationId,
   )
+  const destinationLatitude = destination?.latitude
+  const destinationLongitude = destination?.longitude
   const [hotspots, setHotspots] = useState<DestinationHotspot[]>([])
   const [isLoadingHotspots, setIsLoadingHotspots] = useState(false)
   const [hotspotError, setHotspotError] = useState('')
+  const [speciesByHotspot, setSpeciesByHotspot] = useState<Record<string, HotspotSpeciesRanking>>({})
+  const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [isRemovingDestination, setIsRemovingDestination] = useState(false)
 
   useEffect(() => {
     if (!destination) return
 
+    let active = true
     setIsLoadingHotspots(true)
     setHotspotError('')
+    setHotspots([])
+    setSpeciesByHotspot({})
+    setIsLoadingSpecies(false)
 
     loadDestinationHotspots(destination.latitude, destination.longitude)
-      .then((results) => setHotspots(results))
-      .catch((error: unknown) => {
-        setHotspotError(error instanceof Error ? error.message : 'Could not load hotspots.')
+      .then((results) => {
+        if (active) setHotspots(results)
       })
-      .finally(() => setIsLoadingHotspots(false))
+      .catch((error: unknown) => {
+        if (active) {
+          setHotspotError(error instanceof Error ? error.message : 'Could not load hotspots.')
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingHotspots(false)
+      })
 
-    return
+    return () => {
+      active = false
+    }
   }, [destination])
+
+  useEffect(() => {
+    if (destinationLatitude === undefined || destinationLongitude === undefined
+      || hotspots.length === 0) return
+
+    let active = true
+    setIsLoadingSpecies(true)
+    setSpeciesByHotspot({})
+
+    rankHotspotSpeciesByRegionalFrequency(
+      hotspots,
+      destinationLatitude,
+      destinationLongitude,
+    )
+      .then((results) => {
+        if (active) setSpeciesByHotspot(results)
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          const message = error instanceof Error
+            ? error.message
+            : 'Could not compare hotspot species frequencies.'
+          setSpeciesByHotspot(Object.fromEntries(
+            hotspots.map(({ locId }) => [locId, { species: [], error: message }]),
+          ))
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingSpecies(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [hotspots, destinationLatitude, destinationLongitude])
 
   if (!trip || !destination) {
     return <Page title="Destination not found" backTo={`/trips/${tripId}`} />
@@ -64,12 +121,22 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
         <div className="destination-section-heading">
           <div className="section-heading">
             <h2 id="hotspots-title">Top hotspots</h2>
-            <span>By total species seen</span>
+            {/* <span>By total species seen, with recent lifers at each hotspot</span> */}
           </div>
         </div>
 
         {isLoadingHotspots && <p className="hotspot-status">Loading hotspots...</p>}
         {hotspotError && <p className="hotspot-status hotspot-error">{hotspotError}</p>}
+        {!isLoadingLifeList && lifeListError && (
+          <p className="hotspot-status hotspot-error" role="alert">
+            Could not load your life list: {lifeListError}
+          </p>
+        )}
+        {!isLoadingLifeList && !lifeListError && lifeList === null && (
+          <p className="hotspot-status">
+            if you import life list you can see species u need!!! !!!!
+          </p>
+        )}
 
         {!isLoadingHotspots && !hotspotError && hotspots.length === 0 && (
           <p className="hotspot-status">No recent hotspots found nearby.</p>
@@ -77,20 +144,73 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
 
         {hotspots.length > 0 && (
           <ol className="hotspot-list">
-            {hotspots.map((hotspot, index) => (
-              <li key={hotspot.locId} className="hotspot-row">
-                <span className="hotspot-index">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <div className="hotspot-details">
-                  <a href={hotspot.url} target="_blank" rel="noreferrer">
-                    {hotspot.locName}
-                  </a>
-                  <p>{hotspot.totalSpecies} species seen all time</p>
-                </div>
-                <span className="hotspot-arrow" aria-hidden="true">→</span>
-              </li>
-            ))}
+            {hotspots.map((hotspot, index) => {
+              const result = speciesByHotspot[hotspot.locId]
+              const missingSpecies = result?.species
+                .filter((species) => !lifeList?.has(species.sciName.toLowerCase()))
+                .slice(0, 5) ?? []
+
+              return (
+                <li key={hotspot.locId} className="hotspot-row">
+                  <span className="hotspot-index">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div className="hotspot-details">
+                    <a href={hotspot.url} target="_blank" rel="noreferrer">
+                      {hotspot.locName}
+                    </a>
+                    <p>{hotspot.totalSpecies} species seen all time</p>
+                    <section
+                      className="hotspot-recent-species"
+                      aria-label={`Recent species at ${hotspot.locName}`}
+                    >
+                      <h3>Your needs:</h3>
+                      {(isLoadingSpecies || !result) && (
+                        <p className="hotspot-status">Loading recent species...</p>
+                      )}
+                      {!isLoadingSpecies && result?.error && (
+                        <p className="hotspot-status hotspot-error" role="alert">
+                          {result.error}
+                        </p>
+                      )}
+                      {isLoadingLifeList && (
+                        <p className="hotspot-status">Loading your life list...</p>
+                      )}
+                      {!isLoadingLifeList && !lifeListError && !isLoadingSpecies
+                        && result && !result.error && result.species.length === 0 && (
+                          <p className="hotspot-status">
+                            No species reported at this hotspot in the last 30 days.
+                          </p>
+                        )}
+                      {!isLoadingLifeList && !lifeListError && !isLoadingSpecies
+                        && result && !result.error && result.species.length > 0
+                        && missingSpecies.length === 0 && (
+                          <p className="hotspot-status">you have everything here</p>
+                        )}
+                      {!isLoadingLifeList && !lifeListError && !isLoadingSpecies
+                        && missingSpecies.length > 0 && (
+                          <ol className="recent-species-list">
+                            {missingSpecies.map((species) => (
+                              <li key={species.speciesCode} className="recent-species-row">
+                                <div className="hotspot-details">
+                                  <a
+                                    href={`https://ebird.org/species/${species.speciesCode}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    {species.comName}
+                                  </a>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                    </section>
+                  </div>
+                  <span className="hotspot-arrow" aria-hidden="true">→</span>
+                </li>
+              )
+            })}
           </ol>
         )}
       </section>
