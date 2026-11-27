@@ -4,15 +4,15 @@ import { navigate } from '../utils/navigation'
 import { useTrips } from '../contexts/TripsContext'
 import { loadDestinationHotspots } from '../application/destinationHotspots'
 import {
-  frequentSpeciesAtHotspot,
+  recentSpeciesAtHotspot,
   type DestinationHotspot,
-  type FrequentSpecies,
+  type RecentHotspotSpecies,
 } from '../data/ebird'
 import { useLifeList } from '../contexts/LifeListContext'
 import './DestinationPage.css'
 
 type HotspotSpeciesResult = {
-  species: FrequentSpecies[]
+  species: RecentHotspotSpecies[]
   error: string | null
 }
 
@@ -69,7 +69,7 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     Promise.all(
       hotspots.map(async (hotspot) => {
         try {
-          const species = await frequentSpeciesAtHotspot(hotspot.locId)
+          const species = await recentSpeciesAtHotspot(hotspot.locId)
           return [hotspot.locId, { species, error: null }] as const
         } catch (error) {
           return [
@@ -165,9 +165,11 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                     <p>{hotspot.totalSpecies} species seen all time</p>
                     <section
                       className="hotspot-recent-species"
-                      aria-label={`Recent species at ${hotspot.locName}`}
+                      aria-label={`Species ranked by latest individual count at ${hotspot.locName}`}
                     >
-                      <h3>Your needs:</h3>
+                      <h3>Frequent target species:</h3>
+                      <p className="hotspot-species-explainer">
+                      </p>
                       {(isLoadingSpecies || !result) && (
                         <p className="hotspot-status">Loading recent species...</p>
                       )}
@@ -182,7 +184,6 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                       {!isLoadingLifeList && !lifeListError && !isLoadingSpecies
                         && result && !result.error && result.species.length === 0 && (
                           <p className="hotspot-status">
-                            No species reported at this hotspot in the last 30 days.
                           </p>
                         )}
                       {!isLoadingLifeList && !lifeListError && !isLoadingSpecies
@@ -203,6 +204,11 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                                   >
                                     {species.comName}
                                   </a>
+                                  {/* <span className="species-count-label">
+                                    {species.latestCount === undefined
+                                      ? 'Count not reported'
+                                      : `${species.latestCount} ${species.latestCount === 1 ? 'individual' : 'individuals'}`}
+                                  </span> */}
                                 </div>
                               </li>
                             ))}

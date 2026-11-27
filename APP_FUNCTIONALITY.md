@@ -27,7 +27,7 @@ Lifer is a birding trip-planning app. It lets birders keep a personal life list,
 ## Destination birding information
 
 - Looks up nearby eBird hotspots using the destination's coordinates.
-- Displays up to three hotspots, ranked by the all-time number of species recorded there, with links to their eBird pages.
+- Displays up to five nearby hotspots, ranked by the all-time number of species recorded there, with links to their eBird pages. For each hotspot, it shows up to five species not on the life list, ranked by the individual count in each species' latest eBird report from the last 30 days; this is not a checklist-frequency ranking.
 - Shows loading, empty, and error states while retrieving hotspot data.
 
 ## Data and current limitations

@@ -57,12 +57,25 @@
   font-size: 15px;
 }
 
+.hotspot-species-explainer,
+.species-count-label {
+  color: var(--color-muted);
+}
+
+.hotspot-species-explainer {
+  margin: 0 0 8px;
+}
+
 .recent-species-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   min-height: 40px;
   border-bottom: 1px solid var(--color-border);
+}
+
+.species-count-label {
+  margin-left: 8px;
 }
 
 .hotspot-index,
