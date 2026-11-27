@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "species:export": "node --env-file=.dev.vars --import tsx scripts/getRegionSpecies.ts",
+    "images:import": "node --env-file=.env --import tsx scripts/GetInatImages.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",
@@ -22,6 +24,8 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
     "wrangler": "^4.168.0"

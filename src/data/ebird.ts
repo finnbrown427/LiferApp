@@ -2,6 +2,7 @@
 // FUTURE: credit ebird for data
 
 import Papa from 'papaparse';
+import type { LifeListEntry } from './lifeList'
 
 const BASE = "/api/ebird";
 
@@ -57,26 +58,73 @@ export type DestinationHotspot = {
 
 export type LifeList = Set<string>
 
-/** parse downloaded csv text with papaparse */
-export function importLifeListCsv(csvText: string) {
+function parseLifeListRows(csvText: string, requireDate: boolean): Record<string, string>[] {
   const { data, errors } = Papa.parse<Record<string, string>>(csvText, {
     header: true, skipEmptyLines: true,
   })
   if (errors.length) throw new Error(errors[0].message)
-    return lifeListFromRows(data)
+  if (requireDate && data.length > 0 && !Object.hasOwn(data[0], 'Date')) {
+    throw new Error('CSV must include a Date column to identify the most recently observed birds.')
+  }
+  return data
+}
+
+/** Parse a downloaded eBird CSV as the existing set of scientific names. */
+export function importLifeListCsv(csvText: string): Set<string> {
+  return lifeListFromRows(parseLifeListRows(csvText, false))
+}
+
+/** Parse life-list species with their latest observation dates from an eBird CSV. */
+export function importLifeListEntriesCsv(csvText: string): LifeListEntry[] {
+  const rows = parseLifeListRows(csvText, true)
+  if (rows.length > 0 && !Object.hasOwn(rows[0], 'Common Name')) {
+    throw new Error('CSV must include a Common Name column to display bird names.')
+  }
+  return lifeListEntriesFromRows(rows)
+}
+
+function normalizeObservedDate(value: string | undefined): string | null {
+  const dateText = value?.trim()
+  if (!dateText) return null
+
+  const isoDate = /^(\d{4}-\d{2}-\d{2})(?:$|[T ])/.exec(dateText)?.[1]
+  if (isoDate) {
+    const timestamp = Date.parse(`${isoDate}T00:00:00Z`)
+    if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== isoDate) {
+      throw new Error(`Invalid observation date in CSV: ${dateText}`)
+    }
+    return isoDate
+  }
+
+  const timestamp = Date.parse(dateText)
+  if (!Number.isFinite(timestamp)) {
+    throw new Error(`Invalid observation date in CSV: ${dateText}`)
+  }
+  return new Date(timestamp).toISOString().slice(0, 10)
 }
 
 /** Build your life list (a set of lowercase scientific names) from parsed "Download my data" rows. */
 export function lifeListFromRows(rows: Record<string, string>[]): Set<string> {
-  const names = new Set<string>();
+  return new Set(lifeListEntriesFromRows(rows).map((entry) => entry.scientificName))
+}
+
+/** Keep one entry per species, using the latest valid observation date. */
+export function lifeListEntriesFromRows(rows: Record<string, string>[]): LifeListEntry[] {
+  const entriesByName = new Map<string, LifeListEntry>()
   for (const row of rows) {
     const sci = row["Scientific Name"]?.trim().toLowerCase();
     // Skip blanks, slashes (e.g. gull/tern), hybrids ("x"), spuhs ("sp."), and domestic forms
     if (!sci || /[\/(]| x | sp\.$/.test(sci)) continue;
     // Keep genus + species only (drops subspecies)
-    names.add(sci.split(" ").slice(0, 2).join(" "));
+    const scientificName = sci.split(" ").slice(0, 2).join(" ");
+    const commonName = row["Common Name"]?.trim() || scientificName
+    const observedDate = normalizeObservedDate(row.Date)
+    const existing = entriesByName.get(scientificName)
+    if (!existing || (observedDate && (!existing.observedDate || observedDate > existing.observedDate))) {
+      entriesByName.set(scientificName, { commonName, scientificName, observedDate })
+    }
   }
-  return names;
+  return [...entriesByName.values()]
 }
 
 // The taxonomy is large, so fetch it once and reuse it.

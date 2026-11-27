@@ -1,0 +1,177 @@
+.life-list-gallery {
+  display: grid;
+  gap: 24px;
+}
+
+.life-list-gallery-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.life-list-gallery-eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.life-list-gallery-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(30px, 5vw, 46px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.life-list-gallery-description {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.life-list-gallery-count {
+  display: grid;
+  justify-items: end;
+  color: var(--color-primary);
+}
+
+.life-list-gallery-count span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 48px;
+  line-height: 1;
+}
+
+.life-list-gallery-count small {
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.life-list-gallery-status {
+  margin: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.life-list-gallery-error {
+  border-color: #e4c4bf;
+  color: #9a5148;
+}
+
+.life-list-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.life-list-photo-card {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.life-list-photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(37, 39, 34, 0.1);
+}
+
+.life-list-photo-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--color-background);
+}
+
+.life-list-photo-card figcaption {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+}
+
+.life-list-photo-card h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.life-list-photo-card time {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.life-list-photo-credit {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .life-list-gallery {
+    gap: 16px;
+  }
+
+  .life-list-gallery-heading {
+    align-items: start;
+    padding: 20px;
+  }
+
+  .life-list-gallery-count span {
+    font-size: 38px;
+  }
+
+  .life-list-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .life-list-photo-card img {
+    aspect-ratio: 1;
+  }
+
+  .life-list-photo-card figcaption {
+    gap: 5px;
+    padding: 11px;
+  }
+
+  .life-list-photo-card h3 {
+    font-size: 16px;
+  }
+
+  .life-list-photo-credit {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .life-list-gallery-heading {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .life-list-photo-grid {
+    grid-template-columns: 1fr;
+  }
+}
