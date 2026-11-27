@@ -3,6 +3,7 @@ import './App.css'
 import DestinationPage from './pages/DestinationPage'
 import Dashboard from './pages/Dashboard'
 import TripPage from './pages/TripPage'
+import LifeListPage from './pages/LifeListPage'
 import Page from './components/Page'
 import AuthPage from './pages/AuthPage'
 import { useAuth } from './contexts/AuthContext'
@@ -33,6 +34,10 @@ function AppRoutes() {
   if (tripMatch) {
     return <TripPage key={tripMatch[1]} tripId={tripMatch[1]} />
   }
+
+if (path === '/life-list') {
+  return <LifeListPage />
+}
 
   return <Page title="Page not found" backTo="/" />
 }
