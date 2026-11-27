@@ -28,7 +28,7 @@ type Observation = {
   locId: string;
   locName: string;
   obsDt: string; // "2026-11-20 08:15"
-  howMany?: number;
+  howMany?: number | null;
 };
 
 export type RankedHotspot = {
@@ -39,9 +39,18 @@ export type RankedHotspot = {
   url: string;
 };
 
+export type RecentHotspotSpecies = Taxon & {
+  latestObservationDate: string;
+  latestCount?: number;
+};
+
+export const HOTSPOT_RECENT_DAYS = 30;
+
 export type DestinationHotspot = {
   locId: string;
   locName: string;
+  lat: number;
+  lng: number;
   totalSpecies: number;
   url: string;
 };
@@ -141,6 +150,42 @@ export async function hotspotsForSpecies(
   );
 }
 
+/** Species ranked by individual count in each species' latest recent observation. */
+export async function recentSpeciesAtHotspot(
+  locId: string,
+): Promise<RecentHotspotSpecies[]> {
+  const [taxonomy, observations] = await Promise.all([
+    getTaxonomy(),
+    api<Observation[]>(
+      `/data/obs/${encodeURIComponent(locId)}/recent?back=${HOTSPOT_RECENT_DAYS}`,
+    ),
+  ]);
+  const taxonomyByCode = new Map(taxonomy.map((taxon) => [taxon.speciesCode, taxon]));
+  const latestObservations = new Map<string, RecentHotspotSpecies>();
+
+  for (const observation of observations) {
+    const taxon = taxonomyByCode.get(observation.speciesCode);
+    if (!taxon) continue;
+
+    const existing = latestObservations.get(taxon.speciesCode);
+    if (!existing || observation.obsDt > existing.latestObservationDate) {
+      latestObservations.set(taxon.speciesCode, {
+        ...taxon,
+        latestObservationDate: observation.obsDt,
+        ...(typeof observation.howMany === 'number'
+          ? { latestCount: observation.howMany }
+          : {}),
+      });
+    }
+  }
+
+  return [...latestObservations.values()].sort(
+    (a, b) => (b.latestCount ?? -1) - (a.latestCount ?? -1)
+      || b.latestObservationDate.localeCompare(a.latestObservationDate)
+      || a.comName.localeCompare(b.comName),
+  );
+}
+
 /** Hotspots near coordinates, ranked by total species observed at each location. */
 export async function hotspotsNearDestination(
   latitude: number,
@@ -150,6 +195,8 @@ export async function hotspotsNearDestination(
   const hotspots = await api<Array<{
     locId: string;
     locName: string;
+    lat: number;
+    lng: number;
     numSpeciesAllTime?: number;
   }>>(
     `/ref/hotspot/geo?lat=${latitude}&lng=${longitude}&dist=${distanceKm}&fmt=json&cap=500`
@@ -159,6 +206,8 @@ export async function hotspotsNearDestination(
     .map((hotspot) => ({
       locId: hotspot.locId,
       locName: hotspot.locName,
+      lat: hotspot.lat,
+      lng: hotspot.lng,
       totalSpecies: hotspot.numSpeciesAllTime ?? 0,
       url: `https://ebird.org/hotspot/${hotspot.locId}`,
     }))
