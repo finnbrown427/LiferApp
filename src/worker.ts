@@ -8,7 +8,12 @@ type Env = {
 const EBIRD_API_ORIGIN = 'https://api.ebird.org'
 const EBIRD_API_PREFIX = '/api/ebird/'
 const REGION_CODE_PATTERN = /^[A-Z0-9]{1,3}(?:-[A-Z0-9]{1,3})*$/
+const HOTSPOT_ID_PATTERN = /^L[0-9]{1,10}$/
 const SPECIES_CODE_PATTERN = /^[a-z0-9-]{2,20}$/
+
+function isRegionOrHotspotCode(value: string): boolean {
+  return REGION_CODE_PATTERN.test(value) || HOTSPOT_ID_PATTERN.test(value)
+}
 
 function hasOnlyParams(searchParams: URLSearchParams, allowed: string[]): boolean {
   const keys = [...searchParams.keys()]
@@ -63,7 +68,7 @@ function isAllowedRequest(path: string[], searchParams: URLSearchParams): boolea
     path.length === 4
     && path[0] === 'data'
     && path[1] === 'obs'
-    && REGION_CODE_PATTERN.test(path[2])
+    && isRegionOrHotspotCode(path[2])
     && path[3] === 'recent'
   ) {
     return hasOnlyParams(searchParams, ['back'])

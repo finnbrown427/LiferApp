@@ -39,6 +39,10 @@ export type RankedHotspot = {
   url: string;
 };
 
+export type FrequentSpecies = Taxon & {
+  reports: number;
+};
+
 export type DestinationHotspot = {
   locId: string;
   locName: string;
@@ -140,6 +144,34 @@ export async function hotspotsForSpecies(
 
   return [...byLocation.values()].sort(
     (a, b) => b.reports - a.reports || b.lastSeen.localeCompare(a.lastSeen)
+  );
+}
+
+/** Species ranked by recent observation reports at one hotspot. */
+export async function frequentSpeciesAtHotspot(
+  locId: string,
+): Promise<FrequentSpecies[]> {
+  const [taxonomy, observations] = await Promise.all([
+    getTaxonomy(),
+    api<Observation[]>(`/data/obs/${encodeURIComponent(locId)}/recent?back=30`),
+  ]);
+  const taxonomyByCode = new Map(taxonomy.map((taxon) => [taxon.speciesCode, taxon]));
+  const speciesReports = new Map<string, FrequentSpecies>();
+
+  for (const observation of observations) {
+    const taxon = taxonomyByCode.get(observation.speciesCode);
+    if (!taxon) continue;
+
+    const existing = speciesReports.get(taxon.speciesCode);
+    if (existing) {
+      existing.reports += 1;
+    } else {
+      speciesReports.set(taxon.speciesCode, { ...taxon, reports: 1 });
+    }
+  }
+
+  return [...speciesReports.values()].sort(
+    (a, b) => b.reports - a.reports || a.comName.localeCompare(b.comName),
   );
 }
 
