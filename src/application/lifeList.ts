@@ -1,5 +1,6 @@
-import { importLifeListCsv as parseLifeListCsv } from '../data/ebird'
+import { importLifeListEntriesCsv } from '../data/ebird'
+import type { LifeListEntry } from '../data/lifeList'
 
-export function importLifeList(csvText: string): Set<string> {
-  return parseLifeListCsv(csvText)
+export function importLifeList(csvText: string): LifeListEntry[] {
+  return importLifeListEntriesCsv(csvText)
 }

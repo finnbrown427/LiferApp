@@ -4,7 +4,24 @@ import Link from '../components/Link'
 import Page from '../components/Page'
 import { importLifeList } from '../application/lifeList'
 import { useLifeList } from '../contexts/LifeListContext'
+import { loadRecentLifeListImages, type RecentLifeListImage } from '../repositories/speciesImageRepository'
+import type { LifeListEntry } from '../data/lifeList'
 import { useTrips } from '../contexts/TripsContext'
+
+type RecentBirdsState = {
+  entries: LifeListEntry[]
+  images: RecentLifeListImage[]
+  error: string | null
+}
+
+function formatObservedDate(date: string): string {
+  const [year, month, day] = date.split('-').map(Number)
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day))
+}
 
 function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -12,15 +29,50 @@ function Dashboard() {
   const [tripError, setTripError] = useState<string | null>(null)
   const [isCreatingTrip, setIsCreatingTrip] = useState(false)
   const [lifeListStatus, setLifeListStatus] = useState<string | null>(null)
+  const [recentBirdsState, setRecentBirdsState] = useState<RecentBirdsState | null>(null)
 
   // Read and update the selected user's life list.
-  const { lifeList, setLifeList } = useLifeList()
+  const {
+    lifeList,
+    entries: lifeListEntries,
+    isLoading: isLoadingLifeList,
+    error: lifeListError,
+    setLifeList,
+  } = useLifeList()
   const {
     trips: dashboardTrips,
     isLoading: isLoadingTrips,
     error: tripsError,
     createTrip: addTrip,
   } = useTrips()
+
+  const hasRecentBirdsState = recentBirdsState?.entries === lifeListEntries
+  const recentBirds = hasRecentBirdsState ? recentBirdsState.images : []
+  const recentBirdsError = hasRecentBirdsState ? recentBirdsState.error : null
+  const isLoadingRecentBirds = !isLoadingLifeList && lifeList !== null && !hasRecentBirdsState
+
+  useEffect(() => {
+    if (isLoadingLifeList || !lifeList) return
+
+    let active = true
+    loadRecentLifeListImages(lifeListEntries)
+      .then((images) => {
+        if (active) setRecentBirdsState({ entries: lifeListEntries, images, error: null })
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setRecentBirdsState({
+            entries: lifeListEntries,
+            images: [],
+            error: error instanceof Error ? error.message : 'Could not load recent bird images.',
+          })
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isLoadingLifeList, lifeList, lifeListEntries])
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -113,6 +165,54 @@ function Dashboard() {
         </div>
       </section>
       {lifeListStatus && <p role="alert">{lifeListStatus}</p>}
+
+      <section className="recent-life-list" aria-labelledby="recent-life-list-title">
+        <div className="recent-life-list-heading">
+          <div>
+            <p className="modal-eyebrow">Life list</p>
+            <h2 id="recent-life-list-title">Recently seen birds</h2>
+          </div>
+          <p>Three of your latest observations, with photos.</p>
+        </div>
+
+        {isLoadingLifeList && <p>Loading your life list...</p>}
+        {!isLoadingLifeList && lifeListError && (
+          <p role="alert">Could not load your life list: {lifeListError}</p>
+        )}
+        {!isLoadingLifeList && !lifeListError && lifeList === null && (
+          <p>Import your eBird life list to see recent birds here.</p>
+        )}
+        {!isLoadingLifeList && !lifeListError && lifeList !== null && lifeListEntries.every((entry) => !entry.observedDate) && (
+          <p>Reimport an eBird CSV with a Date column to see your most recent observations.</p>
+        )}
+        {!isLoadingLifeList && !lifeListError && isLoadingRecentBirds && (
+          <p>Loading bird photos...</p>
+        )}
+        {!isLoadingLifeList && !lifeListError && recentBirdsError && (
+          <p role="alert">Could not load bird photos: {recentBirdsError}</p>
+        )}
+        {!isLoadingLifeList && !lifeListError && !isLoadingRecentBirds && !recentBirdsError && lifeList !== null && lifeListEntries.some((entry) => entry.observedDate) && recentBirds.length === 0 && (
+          <p>No imported photos match the dated birds in this life list yet.</p>
+        )}
+        {recentBirds.length > 0 && (
+          <div className="recent-bird-grid">
+            {recentBirds.map((bird) => (
+              <figure className="recent-bird-card" key={bird.scientificName}>
+                <img
+                  src={bird.imageUrl}
+                  alt={bird.commonName}
+                  loading="lazy"
+                />
+                <figcaption>
+                  <span className="recent-bird-name">{bird.commonName}</span>
+                  <time dateTime={bird.observedDate}>{formatObservedDate(bird.observedDate)}</time>
+
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="trip-grid" aria-label="Trips">
         {isLoadingTrips && <p>Loading trips...</p>}

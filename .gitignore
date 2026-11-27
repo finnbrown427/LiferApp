@@ -27,3 +27,6 @@ dist-ssr
 .dev.vars
 .dev.vars.*
 .wrangler/
+.inat-cache/
+*-species.csv
+unresolved.csv
