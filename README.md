@@ -160,6 +160,18 @@ to the browser.
    npm run images:import -- NZ-species.csv
    ```
 
+   To replace a poor iNaturalist photo for one species, use its eBird species code
+   from the CSV:
+
+   ```sh
+   npm run images:import -- NZ-species.csv --refresh-species SPECIES_CODE
+   ```
+
+   Replace `SPECIES_CODE` with the code from the first column of your CSV. This
+   fetches fresh iNaturalist taxon data and skips the currently stored photo. The
+   existing image is retained if no different photo with an allowed license is
+   available. Manual images are not replaced.
+
 The importer accepts only `cc0`, `cc-by`, and `cc-by-sa` licenses by default.
 It can be resumed safely; `--retry-failed` retries unresolved taxa and failed
 photo lookups. The `unresolved.csv` report lists species without an uploaded

@@ -5,6 +5,7 @@
  *   npm run images:import -- species.csv
  *   npm run images:import -- species.csv --limit 20
  *   npm run images:import -- species.csv --retry-failed
+ *   npm run images:import -- species.csv --refresh-species SPECIES_CODE
  *
  * The CSV must contain species_code and scientific_name columns. Progress and
  * attribution are saved in Supabase, so interrupted runs can be resumed.
@@ -65,6 +66,11 @@ type InatTaxonRow = {
   checked_at: string | null;
 };
 type PhotoTodo = Pick<InatTaxonRow, "species_code" | "sci_name" | "inat_taxon_id">;
+type PhotoRefresh = {
+  speciesCode: string;
+  currentPhotoId: string;
+  currentStoragePath: string;
+};
 type SpeciesImageRow = {
   species_code: string;
   sci_name: string;
@@ -248,6 +254,7 @@ export async function resolveTaxon(
 export function pickPhoto(
   taxon: INatTaxon,
   allowed: Set<string>,
+  excludedPhotoIds: ReadonlySet<string> = new Set(),
 ): { photo: INatPhoto | null; status: "ok" | "no_photos" | "no_permissive_photo" } {
   const candidates: INatPhoto[] = [];
   if (taxon.default_photo) candidates.push(taxon.default_photo);
@@ -259,6 +266,7 @@ export function pickPhoto(
   for (const photo of candidates) {
     if (seen.has(photo.id)) continue;
     seen.add(photo.id);
+    if (photo.id != null && excludedPhotoIds.has(String(photo.id))) continue;
     if (allowed.has((photo.license_code ?? "").toLowerCase())) return { photo, status: "ok" };
   }
   return { photo: null, status: seen.size ? "no_permissive_photo" : "no_photos" };
@@ -350,12 +358,15 @@ export async function stepPhotos(
   species: SpeciesRow[],
   allowed: Set<string>,
   maxWidth: number,
+  refresh?: PhotoRefresh,
 ): Promise<void> {
+  const taxaQuery = db.from("inat_taxon_map")
+    .select("species_code, sci_name, inat_taxon_id")
+    .eq("match_status", "matched");
   const [taxaResult, protectedResult] = await Promise.all([
-    db.from("inat_taxon_map")
-      .select("species_code, sci_name, inat_taxon_id")
-      .eq("match_status", "matched")
-      .is("photo_status", null),
+    refresh
+      ? taxaQuery.eq("species_code", refresh.speciesCode)
+      : taxaQuery.is("photo_status", null),
     db.from("species_images").select("species_code").eq("manual_override", true),
   ]);
   if (taxaResult.error) throw new Error(`Could not read taxa needing photos: ${taxaResult.error.message}`);
@@ -382,7 +393,11 @@ export async function stepPhotos(
     const key = `taxa/${crypto.createHash("md5").update(chunk.join(",")).digest("hex")}`;
     let data: TaxaResponse;
     try {
-      data = await inat.getJson<TaxaResponse>(`taxa/${chunk.join(",")}`, {}, key);
+      data = await inat.getJson<TaxaResponse>(
+        `taxa/${chunk.join(",")}`,
+        {},
+        refresh ? undefined : key,
+      );
     } catch (error) {
       hasProcessingErrors = true;
       log.error(`Batch fetch failed: ${errMsg(error)}`);
@@ -397,11 +412,17 @@ export async function stepPhotos(
         if (!taxon) {
           status = "taxon_missing";
         } else {
-          const picked = pickPhoto(taxon, allowed);
+          const excludedPhotoIds = refresh?.speciesCode === row.species_code
+            ? new Set([refresh.currentPhotoId])
+            : undefined;
+          const picked = pickPhoto(taxon, allowed, excludedPhotoIds);
           status = picked.status;
           if (picked.photo) {
             const url = photoUrl(picked.photo);
-            const storagePath = `${row.species_code}.jpg`;
+            const photoFileId = picked.photo.id ?? Date.now();
+            const storagePath = refresh
+              ? `${row.species_code}-${photoFileId}.jpg`
+              : `${row.species_code}.jpg`;
             try {
               const content = await saveImage(await inat.fetchBytes(url), maxWidth);
               const { error: uploadError } = await db.storage.from(BUCKET).upload(storagePath, content, {
@@ -425,14 +446,34 @@ export async function stepPhotos(
                 },
                 { onConflict: "species_code" },
               );
-              if (metadataError) throw new Error(metadataError.message);
+              if (metadataError) {
+                if (refresh) {
+                  const { error: cleanupError } = await db.storage.from(BUCKET).remove([storagePath]);
+                  if (cleanupError) {
+                    log.warn(`Could not remove unreferenced replacement image ${storagePath}: ${cleanupError.message}`);
+                  }
+                }
+                throw new Error(metadataError.message);
+              }
               status = "ok";
+              if (refresh && refresh.currentStoragePath !== storagePath) {
+                const { error: cleanupError } = await db.storage.from(BUCKET).remove([refresh.currentStoragePath]);
+                if (cleanupError) {
+                  log.warn(`Replacement saved, but old image cleanup failed: ${cleanupError.message}`);
+                }
+              }
             } catch (error) {
               hasProcessingErrors = true;
               log.error(`Upload failed for ${row.species_code}: ${errMsg(error)}`);
               status = "download_failed";
             }
           }
+        }
+
+        if (refresh?.speciesCode === row.species_code && status !== "ok") {
+          hasProcessingErrors = true;
+          log.error(`Could not replace the current photo for ${row.species_code}; the existing image was retained.`);
+          continue;
         }
 
         const { error: statusError } = await db.from("inat_taxon_map")
@@ -485,12 +526,14 @@ async function main(): Promise<void> {
       "dl-delay": { type: "string", default: "0.25" },
       limit: { type: "string" },
       "retry-failed": { type: "boolean", default: false },
+      "refresh-species": { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
   if (values.help || positionals.length !== 1) {
     console.log("Usage: npm run images:import -- species.csv [options]");
     console.log("Run with --help for options; species.csv requires species_code,scientific_name columns.");
+    console.log("Refresh one image with --refresh-species SPECIES_CODE.");
     process.exit(values.help ? 0 : 1);
   }
 
@@ -506,6 +549,18 @@ async function main(): Promise<void> {
 
   const allowed = new Set(values.allowed!.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
   let species = readSpecies(positionals[0]);
+  const refreshSpeciesCode = values["refresh-species"]?.trim();
+  if (values["refresh-species"] !== undefined) {
+    if (!refreshSpeciesCode) throw new Error("--refresh-species requires an eBird species code.");
+    if (values.limit || values["retry-failed"]) {
+      throw new Error("--refresh-species cannot be combined with --limit or --retry-failed.");
+    }
+    const target = species.find((item) => item.code === refreshSpeciesCode);
+    if (!target) {
+      throw new Error(`${refreshSpeciesCode} was not found in ${positionals[0]}.`);
+    }
+    species = [target];
+  }
   if (values.limit) {
     const limit = Number(values.limit);
     if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer.");
@@ -532,7 +587,38 @@ async function main(): Promise<void> {
     dl: Number(values["dl-delay"]) * 1000,
   });
   await stepResolve(db, inat, species);
-  await stepPhotos(db, inat, species, allowed, maxWidth);
+
+  let refresh: PhotoRefresh | undefined;
+  if (refreshSpeciesCode) {
+    const { data: currentImage, error: imageError } = await db.from("species_images")
+      .select("source, source_photo_id, storage_path, manual_override")
+      .eq("species_code", refreshSpeciesCode)
+      .maybeSingle();
+    if (imageError) throw new Error(`Could not read the current image: ${imageError.message}`);
+    if (!currentImage) throw new Error(`No existing image for ${refreshSpeciesCode}; run the normal import first.`);
+    if (currentImage.manual_override || currentImage.source !== "inat") {
+      throw new Error(`${refreshSpeciesCode} is a manual image and will not be replaced by an iNaturalist refresh.`);
+    }
+    if (!currentImage.source_photo_id) {
+      throw new Error(`The current image for ${refreshSpeciesCode} has no iNaturalist photo ID to exclude.`);
+    }
+
+    const { data: taxon, error: taxonError } = await db.from("inat_taxon_map")
+      .select("inat_taxon_id, match_status")
+      .eq("species_code", refreshSpeciesCode)
+      .maybeSingle();
+    if (taxonError) throw new Error(`Could not read the iNaturalist taxon: ${taxonError.message}`);
+    if (!taxon || taxon.match_status !== "matched" || taxon.inat_taxon_id === null) {
+      throw new Error(`${refreshSpeciesCode} has no resolved iNaturalist taxon to refresh.`);
+    }
+    refresh = {
+      speciesCode: refreshSpeciesCode,
+      currentPhotoId: currentImage.source_photo_id,
+      currentStoragePath: currentImage.storage_path,
+    };
+  }
+
+  await stepPhotos(db, inat, species, allowed, maxWidth, refresh);
   await writeReport(db, species, values.report!);
   if (hasProcessingErrors) {
     throw new Error("Import completed with processing errors; review the log and report, then rerun to resume.");
