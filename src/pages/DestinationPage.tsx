@@ -4,17 +4,12 @@ import { navigate } from '../utils/navigation'
 import { useTrips } from '../contexts/TripsContext'
 import { loadDestinationHotspots } from '../application/destinationHotspots'
 import {
-  frequentSpeciesAtHotspot,
+  rankHotspotSpeciesByRegionalFrequency,
   type DestinationHotspot,
-  type FrequentSpecies,
+  type HotspotSpeciesRanking,
 } from '../data/ebird'
 import { useLifeList } from '../contexts/LifeListContext'
 import './DestinationPage.css'
-
-type HotspotSpeciesResult = {
-  species: FrequentSpecies[]
-  error: string | null
-}
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
   const { findTrip, removeDestination } = useTrips()
@@ -23,10 +18,12 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
   const destination = trip?.destinations.find(
     (item) => String(item.id) === destinationId,
   )
+  const destinationLatitude = destination?.latitude
+  const destinationLongitude = destination?.longitude
   const [hotspots, setHotspots] = useState<DestinationHotspot[]>([])
   const [isLoadingHotspots, setIsLoadingHotspots] = useState(false)
   const [hotspotError, setHotspotError] = useState('')
-  const [speciesByHotspot, setSpeciesByHotspot] = useState<Record<string, HotspotSpeciesResult>>({})
+  const [speciesByHotspot, setSpeciesByHotspot] = useState<Record<string, HotspotSpeciesRanking>>({})
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [isRemovingDestination, setIsRemovingDestination] = useState(false)
@@ -60,30 +57,30 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
   }, [destination])
 
   useEffect(() => {
-    if (hotspots.length === 0) return
+    if (destinationLatitude === undefined || destinationLongitude === undefined
+      || hotspots.length === 0) return
 
     let active = true
     setIsLoadingSpecies(true)
     setSpeciesByHotspot({})
 
-    Promise.all(
-      hotspots.map(async (hotspot) => {
-        try {
-          const species = await frequentSpeciesAtHotspot(hotspot.locId)
-          return [hotspot.locId, { species, error: null }] as const
-        } catch (error) {
-          return [
-            hotspot.locId,
-            {
-              species: [],
-              error: error instanceof Error ? error.message : 'Could not load recent species.',
-            },
-          ] as const
-        }
-      }),
+    rankHotspotSpeciesByRegionalFrequency(
+      hotspots,
+      destinationLatitude,
+      destinationLongitude,
     )
       .then((results) => {
-        if (active) setSpeciesByHotspot(Object.fromEntries(results))
+        if (active) setSpeciesByHotspot(results)
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          const message = error instanceof Error
+            ? error.message
+            : 'Could not compare hotspot species frequencies.'
+          setSpeciesByHotspot(Object.fromEntries(
+            hotspots.map(({ locId }) => [locId, { species: [], error: message }]),
+          ))
+        }
       })
       .finally(() => {
         if (active) setIsLoadingSpecies(false)
@@ -92,7 +89,7 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
     return () => {
       active = false
     }
-  }, [hotspots])
+  }, [hotspots, destinationLatitude, destinationLongitude])
 
   if (!trip || !destination) {
     return <Page title="Destination not found" backTo={`/trips/${tripId}`} />

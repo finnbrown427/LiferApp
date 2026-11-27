@@ -27,6 +27,7 @@ type Observation = {
   sciName: string;
   locId: string;
   locName: string;
+  subId?: string;
   obsDt: string; // "2026-11-20 08:15"
   howMany?: number;
 };
@@ -41,6 +42,12 @@ export type RankedHotspot = {
 
 export type FrequentSpecies = Taxon & {
   reports: number;
+  specializationScore: number;
+};
+
+export type HotspotSpeciesRanking = {
+  species: FrequentSpecies[];
+  error: string | null;
 };
 
 export type DestinationHotspot = {
@@ -147,32 +154,143 @@ export async function hotspotsForSpecies(
   );
 }
 
-/** Species ranked by recent observation reports at one hotspot. */
-export async function frequentSpeciesAtHotspot(
-  locId: string,
-): Promise<FrequentSpecies[]> {
-  const [taxonomy, observations] = await Promise.all([
+/** Rank hotspot species by their checklist frequency versus other nearby checklists. */
+export async function rankHotspotSpeciesByRegionalFrequency(
+  hotspots: Pick<DestinationHotspot, 'locId'>[],
+  latitude: number,
+  longitude: number,
+): Promise<Record<string, HotspotSpeciesRanking>> {
+  if (hotspots.length === 0) return {};
+
+  const maxResults = 10_000;
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lng: String(longitude),
+    dist: '25',
+    back: '30',
+    maxResults: String(maxResults),
+  });
+  const [taxonomy, regionalObservations, hotspotObservationGroups] = await Promise.all([
     getTaxonomy(),
-    api<Observation[]>(`/data/obs/${encodeURIComponent(locId)}/recent?back=30`),
+    api<Observation[]>(`/data/obs/geo/recent?${params}`),
+    Promise.all(
+      hotspots.map(async ({ locId }) => ({
+        locId,
+        observations: await api<Observation[]>(
+          `/data/obs/${encodeURIComponent(locId)}/recent?back=30`,
+        ),
+      })),
+    ),
   ]);
-  const taxonomyByCode = new Map(taxonomy.map((taxon) => [taxon.speciesCode, taxon]));
-  const speciesReports = new Map<string, FrequentSpecies>();
-
-  for (const observation of observations) {
-    const taxon = taxonomyByCode.get(observation.speciesCode);
-    if (!taxon) continue;
-
-    const existing = speciesReports.get(taxon.speciesCode);
-    if (existing) {
-      existing.reports += 1;
-    } else {
-      speciesReports.set(taxon.speciesCode, { ...taxon, reports: 1 });
-    }
+  if (regionalObservations.length >= maxResults) {
+    throw new Error(
+      'There are too many recent observations within 25 km to compare hotspot frequencies reliably.',
+    );
   }
 
-  return [...speciesReports.values()].sort(
-    (a, b) => b.reports - a.reports || a.comName.localeCompare(b.comName),
+  const taxonomyByCode = new Map(taxonomy.map((taxon) => [taxon.speciesCode, taxon]));
+  const checklistsByLocation = new Map<string, Map<string, Set<string>>>();
+
+  for (const observation of regionalObservations) {
+    if (!observation.subId) {
+      throw new Error('eBird did not return checklist IDs needed to compare hotspot frequencies.');
+    }
+
+    let checklists = checklistsByLocation.get(observation.locId);
+    if (!checklists) {
+      checklists = new Map();
+      checklistsByLocation.set(observation.locId, checklists);
+    }
+
+    let speciesCodes = checklists.get(observation.subId);
+    if (!speciesCodes) {
+      speciesCodes = new Set();
+      checklists.set(observation.subId, speciesCodes);
+    }
+
+    const taxon = taxonomyByCode.get(observation.speciesCode);
+    if (taxon) speciesCodes.add(taxon.speciesCode);
+  }
+
+  const hotspotObservationsByLocation = new Map(
+    hotspotObservationGroups.map(({ locId, observations }) => [locId, observations]),
   );
+
+  return Object.fromEntries(hotspots.map(({ locId }) => {
+    const localChecklists = new Map<string, Set<string>>();
+    for (const observation of hotspotObservationsByLocation.get(locId) ?? []) {
+      if (!observation.subId) {
+        throw new Error('eBird did not return checklist IDs needed to compare hotspot frequencies.');
+      }
+
+      let speciesCodes = localChecklists.get(observation.subId);
+      if (!speciesCodes) {
+        speciesCodes = new Set();
+        localChecklists.set(observation.subId, speciesCodes);
+      }
+
+      const taxon = taxonomyByCode.get(observation.speciesCode);
+      if (taxon) speciesCodes.add(taxon.speciesCode);
+    }
+
+    const regionalSpeciesReports = new Map<string, number>();
+    let regionalChecklistCount = 0;
+
+    for (const [otherLocId, checklists] of checklistsByLocation) {
+      if (otherLocId === locId) continue;
+
+      for (const speciesCodes of checklists.values()) {
+        regionalChecklistCount += 1;
+        for (const speciesCode of speciesCodes) {
+          regionalSpeciesReports.set(
+            speciesCode,
+            (regionalSpeciesReports.get(speciesCode) ?? 0) + 1,
+          );
+        }
+      }
+    }
+
+    if (localChecklists.size > 0 && regionalChecklistCount === 0) {
+      return [locId, {
+        species: [],
+        error: 'Not enough recent observations at other nearby locations for comparison.',
+      }];
+    }
+
+    const localSpeciesReports = new Map<string, number>();
+    for (const speciesCodes of localChecklists.values()) {
+      for (const speciesCode of speciesCodes) {
+        localSpeciesReports.set(
+          speciesCode,
+          (localSpeciesReports.get(speciesCode) ?? 0) + 1,
+        );
+      }
+    }
+
+    const species = [...localSpeciesReports].flatMap(([speciesCode, reports]) => {
+      const taxon = taxonomyByCode.get(speciesCode);
+      if (!taxon) return [];
+
+      // Smooth small samples so a species absent from the baseline doesn't get an infinite score.
+      const localFrequency = (reports + 1) / (localChecklists.size + 2);
+      const regionalFrequency =
+        ((regionalSpeciesReports.get(speciesCode) ?? 0) + 1)
+        / (regionalChecklistCount + 2);
+
+      return [{
+        ...taxon,
+        reports,
+        specializationScore: localFrequency / regionalFrequency,
+      }];
+    }).sort(
+      (a, b) =>
+        b.specializationScore - a.specializationScore
+        || b.reports - a.reports
+        || a.comName.localeCompare(b.comName),
+    );
+
+    return [locId, { species, error: null }];
+  }));
 }
 
 /** Hotspots near coordinates, ranked by total species observed at each location. */

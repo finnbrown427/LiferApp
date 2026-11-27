@@ -68,6 +68,21 @@ function isAllowedRequest(path: string[], searchParams: URLSearchParams): boolea
     path.length === 4
     && path[0] === 'data'
     && path[1] === 'obs'
+    && path[2] === 'geo'
+    && path[3] === 'recent'
+  ) {
+    return hasOnlyParams(searchParams, ['lat', 'lng', 'dist', 'back', 'maxResults'])
+      && hasNumberParam(searchParams, 'lat', -90, 90)
+      && hasNumberParam(searchParams, 'lng', -180, 180)
+      && hasNumberParam(searchParams, 'dist', 0, 50)
+      && hasIntegerParam(searchParams, 'back', 1, 30)
+      && hasIntegerParam(searchParams, 'maxResults', 1, 10000)
+  }
+
+  if (
+    path.length === 4
+    && path[0] === 'data'
+    && path[1] === 'obs'
     && isRegionOrHotspotCode(path[2])
     && path[3] === 'recent'
   ) {
