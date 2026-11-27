@@ -8,6 +8,19 @@ type SpeciesImageRow = {
   attribution: string | null
 }
 
+type SpeciesCodeImageRow = {
+  species_code: string
+  storage_path: string
+  license_code: string | null
+  attribution: string | null
+}
+
+export type SpeciesImage = {
+  imageUrl: string
+  licenseCode: string | null
+  attribution: string | null
+}
+
 export type RecentLifeListImage = {
   commonName: string
   scientificName: string
@@ -19,6 +32,35 @@ export type RecentLifeListImage = {
 
 function eBirdScientificName(scientificName: string): string {
   return scientificName.replace(/^\p{L}/u, (firstLetter) => firstLetter.toUpperCase())
+}
+
+export async function loadSpeciesImagesByCodes(
+  speciesCodes: string[],
+): Promise<Record<string, SpeciesImage>> {
+  const imageByCode: Record<string, SpeciesImage> = {}
+  const uniqueCodes = [...new Set(speciesCodes)]
+
+  for (let start = 0; start < uniqueCodes.length; start += 100) {
+    const chunk = uniqueCodes.slice(start, start + 100)
+    const { data, error } = await supabase
+      .from('species_images')
+      .select('species_code, storage_path, license_code, attribution')
+      .in('species_code', chunk)
+
+    if (error) throw new Error(error.message)
+    for (const row of (data ?? []) as SpeciesCodeImageRow[]) {
+      const { data: publicUrl } = supabase.storage
+        .from('species-images')
+        .getPublicUrl(row.storage_path)
+      imageByCode[row.species_code] = {
+        imageUrl: publicUrl.publicUrl,
+        licenseCode: row.license_code,
+        attribution: row.attribution,
+      }
+    }
+  }
+
+  return imageByCode
 }
 
 export async function loadRecentLifeListImages(

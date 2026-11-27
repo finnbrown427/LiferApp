@@ -9,11 +9,13 @@ import {
   type RecentHotspotSpecies,
 } from '../data/ebird'
 import { useLifeList } from '../contexts/LifeListContext'
+import { loadSpeciesImagesByCodes, type SpeciesImage } from '../repositories/speciesImageRepository'
 import './DestinationPage.css'
 
 type HotspotSpeciesResult = {
-  species: RecentHotspotSpecies[]
+  species: Array<RecentHotspotSpecies & { image?: SpeciesImage }>
   error: string | null
+  imageError: string | null
 }
 
 function DestinationPage({ tripId, destinationId }: { tripId: string; destinationId: string }) {
@@ -70,13 +72,33 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
       hotspots.map(async (hotspot) => {
         try {
           const species = await recentSpeciesAtHotspot(hotspot.locId)
-          return [hotspot.locId, { species, error: null }] as const
+          try {
+            const images = await loadSpeciesImagesByCodes(species.map((bird) => bird.speciesCode))
+            return [
+              hotspot.locId,
+              {
+                species: species.map((bird) => ({ ...bird, image: images[bird.speciesCode] })),
+                error: null,
+                imageError: null,
+              },
+            ] as const
+          } catch (error) {
+            return [
+              hotspot.locId,
+              {
+                species,
+                error: null,
+                imageError: error instanceof Error ? error.message : 'Could not load species photos.',
+              },
+            ] as const
+          }
         } catch (error) {
           return [
             hotspot.locId,
             {
               species: [],
               error: error instanceof Error ? error.message : 'Could not load recent species.',
+              imageError: null,
             },
           ] as const
         }
@@ -178,6 +200,11 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                           {result.error}
                         </p>
                       )}
+                      {!isLoadingSpecies && result?.imageError && (
+                        <p className="hotspot-status hotspot-error" role="alert">
+                          Could not load species photos: {result.imageError}
+                        </p>
+                      )}
                       {isLoadingLifeList && (
                         <p className="hotspot-status">Loading your life list...</p>
                       )}
@@ -196,6 +223,14 @@ function DestinationPage({ tripId, destinationId }: { tripId: string; destinatio
                           <ol className="recent-species-list">
                             {missingSpecies.map((species) => (
                               <li key={species.speciesCode} className="recent-species-row">
+                                {species.image && (
+                                  <img
+                                    className="recent-species-image"
+                                    src={species.image.imageUrl}
+                                    alt=""
+                                    loading="lazy"
+                                  />
+                                )}
                                 <div className="hotspot-details">
                                   <a
                                     href={`https://ebird.org/species/${species.speciesCode}`}
