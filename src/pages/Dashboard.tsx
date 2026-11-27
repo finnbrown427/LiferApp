@@ -169,10 +169,9 @@ function Dashboard() {
       <section className="recent-life-list" aria-labelledby="recent-life-list-title">
         <div className="recent-life-list-heading">
           <div>
-            <p className="modal-eyebrow">Life list</p>
-            <h2 id="recent-life-list-title">Recently seen birds</h2>
+            <h2 id="recent-life-list-title">Latest lifers</h2>
+            <Link to="/life-list" className="life-list-view-all">View all</Link>
           </div>
-          <p>Three of your latest observations, with photos.</p>
         </div>
 
         {isLoadingLifeList && <p>Loading your life list...</p>}
